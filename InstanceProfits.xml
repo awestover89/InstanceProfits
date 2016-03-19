@@ -6,7 +6,7 @@
 		<Size>
 			<AbsDimension x="500" y="700" />
 		</Size>
-		<Backdrop 	bgFile="Interface\Tooltips\UI-Tooltip-Background" 
+		<Backdrop 	bgFile="Interface\Tooltips\UI-Tooltip-Background"
 					edgeFile="Interface\Tooltips\UI-Tooltip-Border"
 					tile="true">
 			<EdgeSize>
@@ -28,7 +28,7 @@
 				<Size>
 					<AbsDimension x="500" y="30" />
 				</Size>
-				<Backdrop 	bgFile="Interface\Tooltips\UI-Tooltip-Background" 
+				<Backdrop 	bgFile="Interface\Tooltips\UI-Tooltip-Background"
 							tile="true">
 					<TileSize>
 						<AbsValue val="16" />
@@ -43,7 +43,7 @@
 						<Anchors>
 							<Anchor point="BOTTOMRIGHT">
 								<Offset x="-10" y="7"/>
-							</Anchor> 
+							</Anchor>
 						</Anchors>
 						<Size>
 							<AbsDimension x="16" y="16" />
@@ -83,12 +83,12 @@
 					</OnMouseUp>
 				</Scripts>
 			</Frame>
-			
+
 			<Button name="$parent_ButtonToggleData" inherits="OptionsButtonTemplate" text="Show Account Data">
 				<Anchors>
 					<Anchor point="TOP">
 						<Offset x="15" y="-32"/>
-					</Anchor> 
+					</Anchor>
 			    </Anchors>
 				<Size>
 					<AbsDimension x="150" y="21" />
@@ -97,12 +97,12 @@
 					<OnClick> IP_ToggleDisplayGlobal(); </OnClick>
 			    </Scripts>
 			</Button>
-			
+
 			<Button name="$parent_ButtonClose" inherits="OptionsButtonTemplate" text="Close">
 				<Anchors>
 					<Anchor point="BOTTOMRIGHT">
 						<Offset x="-12" y="16"/>
-					</Anchor> 
+					</Anchor>
 			    </Anchors>
 			    <Scripts>
 					<OnClick> self:GetParent():Hide(); </OnClick>
@@ -113,7 +113,7 @@
 				<Anchors>
 					<Anchor point="BOTTOMLEFT">
 						<Offset x="12" y="16"/>
-					</Anchor> 
+					</Anchor>
 			    </Anchors>
 				<Size>
 					<AbsDimension x="110" y="21" />
@@ -127,7 +127,7 @@
 				<Anchors>
 					<Anchor point="BOTTOM">
 						<Offset x="15" y="16"/>
-					</Anchor> 
+					</Anchor>
 			    </Anchors>
 				<Size>
 					<AbsDimension x="150" y="21" />
@@ -137,6 +137,6 @@
 			    </Scripts>
 			</Button>
 		</Frames>
-		
+
 	</Frame>
 </Ui>

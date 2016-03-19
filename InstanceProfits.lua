@@ -58,7 +58,7 @@ function IP_CalculateRepairCost()
 	return totalRepairCost;
 end
 
-function copperToString(copper) 
+function copperToString(copper)
 	local gold = math.floor(copper/10000);
 	local silver = math.floor((copper - gold*10000)/100);
 	local remains = copper % 100;
@@ -83,7 +83,7 @@ function timeToSmallString(seconds)
 	return hours .. ":" .. minutes .. ":" .. seconds;
 end
 
-function copperToSmallString(copper) 
+function copperToSmallString(copper)
 	local goldString = "|cFF00FF00";
 	if copper < 0 then
 		copper = math.abs(copper);
@@ -216,7 +216,7 @@ function IP_DisplaySavedData()
 	local i = 0;
 	local r, p, t = 0, 0, 0;
 	if displayGlobal then
-		for instance, data in pairs(globalHistory) do 
+		for instance, data in pairs(globalHistory) do
 			for difficulty, values in pairs(data) do
 				dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. copperToSmallString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
 			end
@@ -225,7 +225,7 @@ function IP_DisplaySavedData()
 	else
 		contentButtonFrame:Show();
 		local offy = 8;
-		for instance, data in pairs(characterHistory) do 
+		for instance, data in pairs(characterHistory) do
 			for difficulty, values in pairs(data) do
 				i = i + 1;
 				contentButtons[i] = contentButtons[i] or CreateFrame("Button", nil, contentButtonFrame, "UIPanelButtonTemplate");
@@ -233,7 +233,7 @@ function IP_DisplaySavedData()
 				contentButtons[i]:SetText("X");
 				contentButtons[i]:SetSize(16, 16);
 				contentButtons[i]:SetNormalFontObject("GameFontNormal");
-				contentButtons[i]:SetScript("OnClick", function(self, button, down) 
+				contentButtons[i]:SetScript("OnClick", function(self, button, down)
 					IP_DeleteInstanceData(instance, difficulty);
 					IP_DisplaySavedData();
 				end);
@@ -260,7 +260,7 @@ function IP_DisplaySavedData()
 		scrollbar:Hide();
 		scrollMax = 1;
 	end
-	scrollbar:SetMinMaxValues(1, scrollMax) 
+	scrollbar:SetMinMaxValues(1, scrollMax)
 	scrollframe:SetScrollChild(content)
 end
 
@@ -274,7 +274,7 @@ function IP_ToggleDisplayGlobal()
 	IP_DisplaySavedData();
 end
 
-function IP_UpdateTime(self, elapsed) 
+function IP_UpdateTime(self, elapsed)
 	elapsedTime = elapsedTime + elapsed;
 	if (not inInstance) then
 		elapsedTime = 0;
@@ -312,12 +312,12 @@ function saveInstanceData()
 	print("You have exited your instance after spending " .. timeString .. " inside.");
 	print("You earned " .. lootedString .. " from mobs");
 	print("and " .. copperToString(vendorMoney) .. " from looted items that you can vendor.");
-	print("Your gear will take " .. copperToString(endRepair - startRepair) .. " to be repaired. This makes your total profit " .. copperToString(lootedMoney + vendorMoney - (endRepair - startRepair)));	
+	print("Your gear will take " .. copperToString(endRepair - startRepair) .. " to be repaired. This makes your total profit " .. copperToString(lootedMoney + vendorMoney - (endRepair - startRepair)));
 	IP_DisplaySavedData();
 end
 
 function IP_ClearCharacterData()
-	for instance, data in pairs(characterHistory) do 
+	for instance, data in pairs(characterHistory) do
 		for difficulty, values in pairs(data) do
 			globalHistory[instance][difficulty]['totalTime'] = globalHistory[instance][difficulty]['totalTime'] - values['totalTime'];
 			globalHistory[instance][difficulty]['totalRepair'] = globalHistory[instance][difficulty]['totalRepair'] - values['totalRepair'];
@@ -360,30 +360,30 @@ function eventHandler(self, event, ...)
 			triggerInstance(name, difficulty, difficultyName, false);
 		end
 		IP_PrintWelcomeMessage();
-		--scrollframe 
-		scrollframe = CreateFrame("ScrollFrame", nil, InstanceProfits_TableDisplay) 
-		scrollframe:SetPoint("TOPLEFT", 10, -60) 
-		scrollframe:SetPoint("BOTTOMRIGHT", -10, 45) 
+		--scrollframe
+		scrollframe = CreateFrame("ScrollFrame", nil, InstanceProfits_TableDisplay)
+		scrollframe:SetPoint("TOPLEFT", 10, -60)
+		scrollframe:SetPoint("BOTTOMRIGHT", -10, 45)
 		scrollframe:SetSize(500, 550)
-		InstanceProfits_TableDisplay.scrollframe = scrollframe 
+		InstanceProfits_TableDisplay.scrollframe = scrollframe
 
-		--scrollbar 
-		scrollbar = CreateFrame("Slider", nil, scrollframe, "UIPanelScrollBarTemplate") 
-		scrollbar:SetPoint("TOPLEFT", InstanceProfits_TableDisplay, "TOPRIGHT", 4, -16) 
-		scrollbar:SetPoint("BOTTOMLEFT", InstanceProfits_TableDisplay, "BOTTOMRIGHT", 4, 16) 
-		scrollbar:SetMinMaxValues(1, 200) 
-		scrollbar:SetValueStep(1) 
-		scrollbar.scrollStep = 1 
-		scrollbar:SetValue(0) 
-		scrollbar:SetWidth(16) 
-		scrollbar:SetScript("OnValueChanged", 
-		function (self, value) 
-		self:GetParent():SetVerticalScroll(value) 
-		end) 
-		local scrollbg = scrollbar:CreateTexture(nil, "BACKGROUND") 
-		scrollbg:SetAllPoints(scrollbar) 
-		scrollbg:SetTexture(0, 0, 0, 0.4) 
-		InstanceProfits_TableDisplay.scrollbar = scrollbar 
+		--scrollbar
+		scrollbar = CreateFrame("Slider", nil, scrollframe, "UIPanelScrollBarTemplate")
+		scrollbar:SetPoint("TOPLEFT", InstanceProfits_TableDisplay, "TOPRIGHT", 4, -16)
+		scrollbar:SetPoint("BOTTOMLEFT", InstanceProfits_TableDisplay, "BOTTOMRIGHT", 4, 16)
+		scrollbar:SetMinMaxValues(1, 200)
+		scrollbar:SetValueStep(1)
+		scrollbar.scrollStep = 1
+		scrollbar:SetValue(0)
+		scrollbar:SetWidth(16)
+		scrollbar:SetScript("OnValueChanged",
+		function (self, value)
+		self:GetParent():SetVerticalScroll(value)
+		end)
+		local scrollbg = scrollbar:CreateTexture(nil, "BACKGROUND")
+		scrollbg:SetAllPoints(scrollbar)
+		scrollbg:SetTexture(0, 0, 0, 0.4)
+		InstanceProfits_TableDisplay.scrollbar = scrollbar
 
 	elseif (event == "PLAYER_ENTERING_WORLD") then
 		--print("ZONE_CHANGED_NEW_AREA");
