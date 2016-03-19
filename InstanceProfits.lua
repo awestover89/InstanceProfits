@@ -10,9 +10,17 @@
 ---------
 -- new --
 ---------
+local strmatch, strgsub = string.match, string.gsub
 
 local isInPvEInstance = false
+local currentCopperAmount
+
 local IGNORED_ZONES = { [1152]=true, [1330]=true, [1153]=true, [1154]=true, [1158]=true, [1331]=true, [1159]=true, [1160]=true };
+local LOOT_ITEM_PATTERN = strgsub(LOOT_ITEM_SELF, "%%s", "(.+)")
+local LOOT_ITEM_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
+local LOOT_ITEM_PUSHED_PATTERN = strgsub(LOOT_ITEM_PUSHED_SELF, "%%s", "(.+)")
+local LOOT_ITEM_PUSHED_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_PUSHED_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
+
 ---------
 -- old --
 ---------
@@ -37,9 +45,13 @@ local frame = CreateFrame("FRAME", "InstanceProfitsFrame");
 frame:RegisterEvent("ZONE_CHANGED_NEW_AREA");
 frame:RegisterEvent("PLAYER_ENTERING_WORLD");
 frame:RegisterEvent("ADDON_LOADED");
-frame:RegisterEvent("LOOT_OPENED");
+frame:RegisterEvent("PLAYER_LOGIN");
 frame:RegisterEvent("PLAYER_LOGOUT");
 frame:RegisterEvent("GET_ITEM_INFO_RECEIVED");
+
+-- loot
+frame:RegisterEvent("PLAYER_MONEY");
+frame:RegisterEvent("CHAT_MSG_LOOT");
 
 function IP_PrintWelcomeMessage()
 	print("|cFF00CCFF<IP>|r Instance Profit Tracker v. " .. version .. " loaded.");
@@ -371,6 +383,8 @@ function eventHandler(self, event, ...)
 		InstanceProfits_TableDisplay.scrollbar = scrollbar
 
 		self:UnregisterEvent("ADDON_LOADED")
+	elseif event == "PLAYER_LOGIN" then
+		currentCopperAmount = GetMoney()
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		local inInstance, instanceType = IsInInstance()
 		local wasInPvEInstance = isInPvEInstance
@@ -387,39 +401,47 @@ function eventHandler(self, event, ...)
 				saveInstanceData();
 			end
 		end
-	elseif event == "LOOT_OPENED" and isInPvEInstance then -- TO-DO: REDO, parse CHAT_MSG_MONEY and CHAT_MSG_LOOT events
-		local goldPattern = GOLD_AMOUNT:gsub('%%d', '(%%d*)')
-		local silverPattern = SILVER_AMOUNT:gsub('%%d', '(%%d*)')
-		local copperPattern = COPPER_AMOUNT:gsub('%%d', '(%%d*)')
-		for i=1, GetNumLootItems() do
-			local _, item, quantity = GetLootSlotInfo(i);
-			if (quantity ~= 0) then
-				local itemLink = GetLootSlotLink(i);
-				local itemString = string.match(itemLink, "item[%-?%d:]+");
-				local _, itemId, enchantId, jewelId1, jewelId2, jewelId3, jewelId4, suffixId, uniqueId, linkLevel, reforgeId, upgradeId = strsplit(":", itemString)
-				name2, link, quality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, texture, vendorPrice = GetItemInfo(itemId);
-				if (name2 ~= nil) then
-					vendorMoney = vendorMoney + (vendorPrice * quantity);
-				else
-				    print("Querying server for info on: " .. name2);
-					lootableItems[item] = (lootableItems[item] or 0) + quantity;
+	elseif event == "PLAYER_MONEY" and isInPvEInstance then
+		local previousCopperAmount = currentCopperAmount
+		currentCopperAmount = GetMoney()
+
+		local difference = currentCopperAmount - previousCopperAmount
+		if difference > 0 then
+			lootedMoney = lootedMoney + difference
+		end
+
+		liveLoot:SetText("Looted: " .. GetMoneyString(lootedMoney));
+	elseif event == "CHAT_MSG_LOOT" and isInPvEInstance then
+		local itemLink, quantity = strmatch(arg1, LOOT_ITEM_MULTIPLE_PATTERN)
+		if not itemLink then
+			itemLink, quantity = strmatch(arg1, LOOT_ITEM_PUSHED_MULTIPLE_PATTERN)
+			if not itemLink then
+				quantity, itemLink = 1, strmatch(arg1, LOOT_ITEM_PATTERN)
+				if not itemLink then
+					quantity, itemLink = 1, strmatch(arg1, LOOT_ITEM_PUSHED_PATTERN)
+					if not itemLink then
+						return
+					end
 				end
-			else
-				local gold = tonumber(string.match(item, goldPattern) or 0)
-				local silver = tonumber(string.match(item, silverPattern) or 0)
-				local copper = tonumber(string.match(item, copperPattern) or 0)
-				lootedMoney = lootedMoney + (gold * 100 * 100);
-				lootedMoney = lootedMoney + (silver * 100);
-				lootedMoney = lootedMoney + copper;
 			end
 		end
-		liveLoot:SetText("Looted: " .. GetMoneyString(lootedMoney));
-		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney));
+
+		quantity = tonumber(quantity or 1)
+		local name, _, _, _, _, _, _, _, _, _, vendorPrice = GetItemInfo(itemLink)
+
+		if name then
+			vendorMoney = vendorMoney + (vendorPrice * quantity)
+		else
+			lootableItems[name] = (lootableItems[name] or 0) + quantity;
+		end
+
+		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney))
 	elseif event == "GET_ITEM_INFO_RECEIVED" and isInPvEInstance then
-		name, link, quality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, texture, vendorPrice = GetItemInfo(arg1);
-		local quantity = lootableItems[name] or 0;
-		vendorMoney = vendorMoney + (vendorPrice * quantity);
+		local name, _, _, _, _, _, _, _, _, _, vendorPrice = GetItemInfo(arg1);
+		vendorMoney = vendorMoney + (vendorPrice * (lootableItems[name] or 0));
 		lootableItems[name] = 0;
+
+		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney))
 	elseif event == "PLAYER_LOGOUT" then
 		if isInPvEInstance then
 			saveInstanceData();
