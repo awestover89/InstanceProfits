@@ -7,8 +7,17 @@
 -- TODO: OPT: Fix for only items actually looted to handle groups
 -- TODO: OPT: Add Auction Value option
 
-local inInstance = false;
-local enteredAlive = true;
+---------
+-- new --
+---------
+
+local isInPvEInstance = false
+local IGNORED_ZONES = { [1152]=true, [1330]=true, [1153]=true, [1154]=true, [1158]=true, [1331]=true, [1159]=true, [1160]=true };
+---------
+-- old --
+---------
+
+local enteredAlive = true; -- need to change it, cuz it's always true, you can't enter whilst dead
 instanceName, instanceDifficulty, instanceDifficultyName, startTime, startRepair = nil, nil, nil, 0, 0;
 characterHistory, globalHistory, contentButtons = {}, {}, {};
 content = nil;
@@ -21,7 +30,6 @@ liveTime = nil;
 liveLoot = nil;
 liveVendor = nil;
 local lootableItems = {};
-local ignorezones = { [1152]=true, [1330]=true, [1153]=true, [1154]=true, [1158]=true, [1331]=true, [1159]=true, [1160]=true };
 local elapsedTime, lootedMoney, vendorMoney = 0, 0, 0;
 local version = "0.3.1";
 
@@ -276,7 +284,7 @@ end
 
 function IP_UpdateTime(self, elapsed)
 	elapsedTime = elapsedTime + elapsed;
-	if (not inInstance) then
+	if (not isInPvEInstance) then
 		elapsedTime = 0;
 	elseif (elapsedTime >= 1) then
 		if instanceDifficultyName == nil or instanceDifficultyName == "" then
@@ -286,7 +294,7 @@ function IP_UpdateTime(self, elapsed)
 			triggerInstance(name, instanceDifficulty, instanceDifficultyName, true);
 		end
 		elapsedTime = 0;
-		if not enteredAlive then
+		if not enteredAlive then -- never happens
 			startTime = startTime + 1
 		end
 		liveTime:SetText("Time: " .. timeToSmallString(difftime(time(), startTime)));
@@ -346,19 +354,10 @@ function eventHandler(self, event, ...)
 		instanceDifficultyName = instanceName;
 		InstanceProfits_TableDisplay:Hide();
 		InstanceProfits_LiveDisplay:Hide();
-		characterHistory = _G["IP_InstanceRunsCharacterHistory"];
-		globalHistory = _G["IP_InstanceRunsGlobalHistory"];
-		if characterHistory == nil then
-			characterHistory = {};
-		end
-		if globalHistory == nil then
-			globalHistory = {};
-		end
-		local name, typeOfInstance, difficulty, difficultyName, _, _, _, instanceMapId, _ = GetInstanceInfo();
-		inInstance = ((typeOfInstance == "raid" or typeOfInstance == "party") and ignorezones[instanceMapId] == nil and not inInstance and GetNumGroupMembers() == 0)
-		if inInstance then
-			triggerInstance(name, difficulty, difficultyName, false);
-		end
+
+		characterHistory = _G["IP_InstanceRunsCharacterHistory"] or {};
+		globalHistory = _G["IP_InstanceRunsGlobalHistory"] or {};
+
 		IP_PrintWelcomeMessage();
 		--scrollframe
 		scrollframe = CreateFrame("ScrollFrame", nil, InstanceProfits_TableDisplay)
@@ -385,29 +384,24 @@ function eventHandler(self, event, ...)
 		scrollbg:SetTexture(0, 0, 0, 0.4)
 		InstanceProfits_TableDisplay.scrollbar = scrollbar
 
-	elseif (event == "PLAYER_ENTERING_WORLD") then
-		--print("ZONE_CHANGED_NEW_AREA");
-		local name, typeOfInstance, difficulty, difficultyName, _, _, _, instanceMapId, _ = GetInstanceInfo();
-		print(GetInstanceInfo());
-		local enteredInstance = ((typeOfInstance == "raid" or typeOfInstance == "party") and ignorezones[instanceMapId] == nil and not inInstance  and GetNumGroupMembers() == 0)
-		if enteredInstance then
-			inInstance = true;
-			print("Entered " .. name);
-			print("Difficulty: " .. difficultyName);
-			if instanceDifficultyName == nil or instanceDifficultyName == "" then
-				IP_ShowLiveTracker();
-			else
-				triggerInstance(name, difficulty, difficultyName, enteredAlive);
+		self:UnregisterEvent("ADDON_LOADED")
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		local inInstance, instanceType = IsInInstance()
+		local wasInPvEInstance = isInPvEInstance
+		isInPvEInstance = inInstance and (instanceType == "party" or instanceType == "raid")
+
+		if isInPvEInstance then -- entered instance
+			local name, typeOfInstance, difficulty, difficultyName, _, _, _, instanceMapId = GetInstanceInfo()
+
+			if not IGNORED_ZONES[instanceMapId] then
+				triggerInstance(name, difficulty, difficultyName, true);
 			end
-			enteredAlive = true;
-		elseif inInstance then
-			inInstance = false;
-			enteredAlive = not UnitIsDeadOrGhost("player");
-			if enteredAlive then
+		else -- entered something else
+			if wasInPvEInstance ~= isInPvEInstance then -- we actually left instance
 				saveInstanceData();
 			end
 		end
-	elseif event == "LOOT_OPENED" and inInstance then
+	elseif event == "LOOT_OPENED" and isInPvEInstance then -- TO-DO: REDO, parse CHAT_MSG_MONEY and CHAT_MSG_LOOT events
 		local goldPattern = GOLD_AMOUNT:gsub('%%d', '(%%d*)')
 		local silverPattern = SILVER_AMOUNT:gsub('%%d', '(%%d*)')
 		local copperPattern = COPPER_AMOUNT:gsub('%%d', '(%%d*)')
@@ -435,13 +429,13 @@ function eventHandler(self, event, ...)
 		end
 		liveLoot:SetText("Looted: " .. copperToSmallString(lootedMoney));
 		liveVendor:SetText("Vendor: " .. copperToSmallString(vendorMoney));
-	elseif event == "GET_ITEM_INFO_RECEIVED" and inInstance then
+	elseif event == "GET_ITEM_INFO_RECEIVED" and isInPvEInstance then
 		name, link, quality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, texture, vendorPrice = GetItemInfo(arg1);
 		local quantity = lootableItems[name] or 0;
 		vendorMoney = vendorMoney + (vendorPrice * quantity);
 		lootableItems[name] = 0;
 	elseif event == "PLAYER_LOGOUT" then
-		if inInstance or not enteredAlive then
+		if isInPvEInstance then
 			saveInstanceData();
 		end
 		_G["IP_InstanceRunsCharacterHistory"] = characterHistory;
