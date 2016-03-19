@@ -91,20 +91,6 @@ function timeToSmallString(seconds)
 	return hours .. ":" .. minutes .. ":" .. seconds;
 end
 
-function copperToSmallString(copper)
-	local goldString = "|cFF00FF00";
-	if copper < 0 then
-		copper = math.abs(copper);
-		goldString = "|cFFFF0000";
-	end
-	local gold = math.floor(copper/10000);
-	copper = copper - gold * 10000;
-	local silver = math.floor(copper/100);
-	copper = copper - silver * 100;
-	goldString = goldString .. gold .. "|TInterface\\MoneyFrame\\UI-GoldIcon:0|t" .. silver .. "|TInterface\\MoneyFrame\\UI-SilverIcon:0|t" .. copper .. "|TInterface\\MoneyFrame\\UI-CopperIcon:0|t|r";
-	return goldString;
-end
-
 function IP_ShowLiveTracker()
 	InstanceProfits_LiveDisplay:Show();
 	liveName = liveName or InstanceProfits_LiveDisplay:CreateFontString(nil, "ARTWORK","SystemFont_Small");
@@ -115,8 +101,8 @@ function IP_ShowLiveTracker()
 	liveName:SetText(instanceName);
 	liveDifficulty:SetText(instanceDifficultyName);
 	liveTime:SetText(liveTime:GetText() or "Time: 00:00:00");
-	liveLoot:SetText("Looted: " .. copperToSmallString(lootedMoney));
-	liveVendor:SetText("Vendor: " .. copperToSmallString(vendorMoney));
+	liveLoot:SetText("Looted: " .. GetMoneyString(lootedMoney));
+	liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney));
 	local ofsy = -5;
 	liveName:SetPoint("TOPLEFT", 5, ofsy);
 	ofsy = ofsy - liveName:GetStringHeight() - 5;
@@ -226,7 +212,7 @@ function IP_DisplaySavedData()
 	if displayGlobal then
 		for instance, data in pairs(globalHistory) do
 			for difficulty, values in pairs(data) do
-				dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. copperToSmallString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
+				dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
 			end
 		end
 		contentButtonFrame:Hide();
@@ -245,7 +231,7 @@ function IP_DisplaySavedData()
 					IP_DeleteInstanceData(instance, difficulty);
 					IP_DisplaySavedData();
 				end);
-				dataString = dataString .. instance .. " (" .. difficulty .. ") \n           " .. values['count'] .. " | " .. copperToSmallString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
+				dataString = dataString .. instance .. " (" .. difficulty .. ") \n           " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
 				r = r + values['count']
 				p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
 				t = t + values['totalTime']
@@ -258,7 +244,7 @@ function IP_DisplaySavedData()
 			contentButtons[j]:Hide();
 		end
 	end
-	dataString = dataString .. "Totals: \n           Runs: " .. r .. "\n           Profit: " .. copperToSmallString(p) .. "\n           Time: " .. timeToSmallString(t) .. "\n\n"
+	dataString = dataString .. "Totals: \n           Runs: " .. r .. "\n           Profit: " .. GetMoneyString(p) .. "\n           Time: " .. timeToSmallString(t) .. "\n\n"
 	content.text:SetText(dataString)
 	local scrollMax = content.text:GetStringHeight();
 	if scrollMax > 613 then
@@ -427,8 +413,8 @@ function eventHandler(self, event, ...)
 				lootedMoney = lootedMoney + copper;
 			end
 		end
-		liveLoot:SetText("Looted: " .. copperToSmallString(lootedMoney));
-		liveVendor:SetText("Vendor: " .. copperToSmallString(vendorMoney));
+		liveLoot:SetText("Looted: " .. GetMoneyString(lootedMoney));
+		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney));
 	elseif event == "GET_ITEM_INFO_RECEIVED" and isInPvEInstance then
 		name, link, quality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, texture, vendorPrice = GetItemInfo(arg1);
 		local quantity = lootableItems[name] or 0;
