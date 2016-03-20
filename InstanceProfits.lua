@@ -7,8 +7,25 @@
 -- TODO: OPT: Fix for only items actually looted to handle groups
 -- TODO: OPT: Add Auction Value option
 
-local inInstance = false;
-local enteredAlive = true;
+---------
+-- new --
+---------
+local strmatch, strgsub = string.match, string.gsub
+
+local isInPvEInstance = false
+local currentCopperAmount
+
+local IGNORED_ZONES = { [1152]=true, [1330]=true, [1153]=true, [1154]=true, [1158]=true, [1331]=true, [1159]=true, [1160]=true };
+local LOOT_ITEM_PATTERN = strgsub(LOOT_ITEM_SELF, "%%s", "(.+)")
+local LOOT_ITEM_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
+local LOOT_ITEM_PUSHED_PATTERN = strgsub(LOOT_ITEM_PUSHED_SELF, "%%s", "(.+)")
+local LOOT_ITEM_PUSHED_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_PUSHED_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
+
+---------
+-- old --
+---------
+
+local enteredAlive = true
 instanceName, instanceDifficulty, instanceDifficultyName, startTime, startRepair = nil, nil, nil, 0, 0;
 characterHistory, globalHistory, contentButtons = {}, {}, {};
 content = nil;
@@ -21,7 +38,6 @@ liveTime = nil;
 liveLoot = nil;
 liveVendor = nil;
 local lootableItems = {};
-local ignorezones = { [1152]=true, [1330]=true, [1153]=true, [1154]=true, [1158]=true, [1331]=true, [1159]=true, [1160]=true };
 local elapsedTime, lootedMoney, vendorMoney = 0, 0, 0;
 local version = "0.3.1";
 
@@ -29,9 +45,13 @@ local frame = CreateFrame("FRAME", "InstanceProfitsFrame");
 frame:RegisterEvent("ZONE_CHANGED_NEW_AREA");
 frame:RegisterEvent("PLAYER_ENTERING_WORLD");
 frame:RegisterEvent("ADDON_LOADED");
-frame:RegisterEvent("LOOT_OPENED");
+frame:RegisterEvent("PLAYER_LOGIN");
 frame:RegisterEvent("PLAYER_LOGOUT");
 frame:RegisterEvent("GET_ITEM_INFO_RECEIVED");
+
+-- loot
+frame:RegisterEvent("PLAYER_MONEY");
+frame:RegisterEvent("CHAT_MSG_LOOT");
 
 function IP_PrintWelcomeMessage()
 	print("|cFF00CCFF<IP>|r Instance Profit Tracker v. " .. version .. " loaded.");
@@ -58,7 +78,7 @@ function IP_CalculateRepairCost()
 	return totalRepairCost;
 end
 
-function copperToString(copper) 
+function copperToString(copper)
 	local gold = math.floor(copper/10000);
 	local silver = math.floor((copper - gold*10000)/100);
 	local remains = copper % 100;
@@ -83,20 +103,6 @@ function timeToSmallString(seconds)
 	return hours .. ":" .. minutes .. ":" .. seconds;
 end
 
-function copperToSmallString(copper) 
-	local goldString = "|cFF00FF00";
-	if copper < 0 then
-		copper = math.abs(copper);
-		goldString = "|cFFFF0000";
-	end
-	local gold = math.floor(copper/10000);
-	copper = copper - gold * 10000;
-	local silver = math.floor(copper/100);
-	copper = copper - silver * 100;
-	goldString = goldString .. gold .. "|TInterface\\MoneyFrame\\UI-GoldIcon:0|t" .. silver .. "|TInterface\\MoneyFrame\\UI-SilverIcon:0|t" .. copper .. "|TInterface\\MoneyFrame\\UI-CopperIcon:0|t|r";
-	return goldString;
-end
-
 function IP_ShowLiveTracker()
 	InstanceProfits_LiveDisplay:Show();
 	liveName = liveName or InstanceProfits_LiveDisplay:CreateFontString(nil, "ARTWORK","SystemFont_Small");
@@ -107,8 +113,8 @@ function IP_ShowLiveTracker()
 	liveName:SetText(instanceName);
 	liveDifficulty:SetText(instanceDifficultyName);
 	liveTime:SetText(liveTime:GetText() or "Time: 00:00:00");
-	liveLoot:SetText("Looted: " .. copperToSmallString(lootedMoney));
-	liveVendor:SetText("Vendor: " .. copperToSmallString(vendorMoney));
+	liveLoot:SetText("Looted: " .. GetMoneyString(lootedMoney));
+	liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney));
 	local ofsy = -5;
 	liveName:SetPoint("TOPLEFT", 5, ofsy);
 	ofsy = ofsy - liveName:GetStringHeight() - 5;
@@ -216,16 +222,16 @@ function IP_DisplaySavedData()
 	local i = 0;
 	local r, p, t = 0, 0, 0;
 	if displayGlobal then
-		for instance, data in pairs(globalHistory) do 
+		for instance, data in pairs(globalHistory) do
 			for difficulty, values in pairs(data) do
-				dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. copperToSmallString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
+				dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
 			end
 		end
 		contentButtonFrame:Hide();
 	else
 		contentButtonFrame:Show();
 		local offy = 8;
-		for instance, data in pairs(characterHistory) do 
+		for instance, data in pairs(characterHistory) do
 			for difficulty, values in pairs(data) do
 				i = i + 1;
 				contentButtons[i] = contentButtons[i] or CreateFrame("Button", nil, contentButtonFrame, "UIPanelButtonTemplate");
@@ -233,11 +239,11 @@ function IP_DisplaySavedData()
 				contentButtons[i]:SetText("X");
 				contentButtons[i]:SetSize(16, 16);
 				contentButtons[i]:SetNormalFontObject("GameFontNormal");
-				contentButtons[i]:SetScript("OnClick", function(self, button, down) 
+				contentButtons[i]:SetScript("OnClick", function(self, button, down)
 					IP_DeleteInstanceData(instance, difficulty);
 					IP_DisplaySavedData();
 				end);
-				dataString = dataString .. instance .. " (" .. difficulty .. ") \n           " .. values['count'] .. " | " .. copperToSmallString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
+				dataString = dataString .. instance .. " (" .. difficulty .. ") \n           " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
 				r = r + values['count']
 				p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
 				t = t + values['totalTime']
@@ -250,7 +256,7 @@ function IP_DisplaySavedData()
 			contentButtons[j]:Hide();
 		end
 	end
-	dataString = dataString .. "Totals: \n           Runs: " .. r .. "\n           Profit: " .. copperToSmallString(p) .. "\n           Time: " .. timeToSmallString(t) .. "\n\n"
+	dataString = dataString .. "Totals: \n           Runs: " .. r .. "\n           Profit: " .. GetMoneyString(p) .. "\n           Time: " .. timeToSmallString(t) .. "\n\n"
 	content.text:SetText(dataString)
 	local scrollMax = content.text:GetStringHeight();
 	if scrollMax > 613 then
@@ -260,7 +266,7 @@ function IP_DisplaySavedData()
 		scrollbar:Hide();
 		scrollMax = 1;
 	end
-	scrollbar:SetMinMaxValues(1, scrollMax) 
+	scrollbar:SetMinMaxValues(1, scrollMax)
 	scrollframe:SetScrollChild(content)
 end
 
@@ -274,9 +280,9 @@ function IP_ToggleDisplayGlobal()
 	IP_DisplaySavedData();
 end
 
-function IP_UpdateTime(self, elapsed) 
+function IP_UpdateTime(self, elapsed)
 	elapsedTime = elapsedTime + elapsed;
-	if (not inInstance) then
+	if (not isInPvEInstance) then
 		elapsedTime = 0;
 	elseif (elapsedTime >= 1) then
 		if instanceDifficultyName == nil or instanceDifficultyName == "" then
@@ -286,7 +292,7 @@ function IP_UpdateTime(self, elapsed)
 			triggerInstance(name, instanceDifficulty, instanceDifficultyName, true);
 		end
 		elapsedTime = 0;
-		if not enteredAlive then
+		if not enteredAlive then -- never happens
 			startTime = startTime + 1
 		end
 		liveTime:SetText("Time: " .. timeToSmallString(difftime(time(), startTime)));
@@ -312,12 +318,12 @@ function saveInstanceData()
 	print("You have exited your instance after spending " .. timeString .. " inside.");
 	print("You earned " .. lootedString .. " from mobs");
 	print("and " .. copperToString(vendorMoney) .. " from looted items that you can vendor.");
-	print("Your gear will take " .. copperToString(endRepair - startRepair) .. " to be repaired. This makes your total profit " .. copperToString(lootedMoney + vendorMoney - (endRepair - startRepair)));	
+	print("Your gear will take " .. copperToString(endRepair - startRepair) .. " to be repaired. This makes your total profit " .. copperToString(lootedMoney + vendorMoney - (endRepair - startRepair)));
 	IP_DisplaySavedData();
 end
 
 function IP_ClearCharacterData()
-	for instance, data in pairs(characterHistory) do 
+	for instance, data in pairs(characterHistory) do
 		for difficulty, values in pairs(data) do
 			globalHistory[instance][difficulty]['totalTime'] = globalHistory[instance][difficulty]['totalTime'] - values['totalTime'];
 			globalHistory[instance][difficulty]['totalRepair'] = globalHistory[instance][difficulty]['totalRepair'] - values['totalRepair'];
@@ -346,102 +352,102 @@ function eventHandler(self, event, ...)
 		instanceDifficultyName = instanceName;
 		InstanceProfits_TableDisplay:Hide();
 		InstanceProfits_LiveDisplay:Hide();
-		characterHistory = _G["IP_InstanceRunsCharacterHistory"];
-		globalHistory = _G["IP_InstanceRunsGlobalHistory"];
-		if characterHistory == nil then
-			characterHistory = {};
-		end
-		if globalHistory == nil then
-			globalHistory = {};
-		end
-		local name, typeOfInstance, difficulty, difficultyName, _, _, _, instanceMapId, _ = GetInstanceInfo();
-		inInstance = ((typeOfInstance == "raid" or typeOfInstance == "party") and ignorezones[instanceMapId] == nil and not inInstance and GetNumGroupMembers() == 0)
-		if inInstance then
-			triggerInstance(name, difficulty, difficultyName, false);
-		end
+
+		characterHistory = _G["IP_InstanceRunsCharacterHistory"] or {};
+		globalHistory = _G["IP_InstanceRunsGlobalHistory"] or {};
+
 		IP_PrintWelcomeMessage();
-		--scrollframe 
-		scrollframe = CreateFrame("ScrollFrame", nil, InstanceProfits_TableDisplay) 
-		scrollframe:SetPoint("TOPLEFT", 10, -60) 
-		scrollframe:SetPoint("BOTTOMRIGHT", -10, 45) 
+		--scrollframe
+		scrollframe = CreateFrame("ScrollFrame", nil, InstanceProfits_TableDisplay)
+		scrollframe:SetPoint("TOPLEFT", 10, -60)
+		scrollframe:SetPoint("BOTTOMRIGHT", -10, 45)
 		scrollframe:SetSize(500, 550)
-		InstanceProfits_TableDisplay.scrollframe = scrollframe 
+		InstanceProfits_TableDisplay.scrollframe = scrollframe
 
-		--scrollbar 
-		scrollbar = CreateFrame("Slider", nil, scrollframe, "UIPanelScrollBarTemplate") 
-		scrollbar:SetPoint("TOPLEFT", InstanceProfits_TableDisplay, "TOPRIGHT", 4, -16) 
-		scrollbar:SetPoint("BOTTOMLEFT", InstanceProfits_TableDisplay, "BOTTOMRIGHT", 4, 16) 
-		scrollbar:SetMinMaxValues(1, 200) 
-		scrollbar:SetValueStep(1) 
-		scrollbar.scrollStep = 1 
-		scrollbar:SetValue(0) 
-		scrollbar:SetWidth(16) 
-		scrollbar:SetScript("OnValueChanged", 
-		function (self, value) 
-		self:GetParent():SetVerticalScroll(value) 
-		end) 
-		local scrollbg = scrollbar:CreateTexture(nil, "BACKGROUND") 
-		scrollbg:SetAllPoints(scrollbar) 
-		scrollbg:SetTexture(0, 0, 0, 0.4) 
-		InstanceProfits_TableDisplay.scrollbar = scrollbar 
+		--scrollbar
+		scrollbar = CreateFrame("Slider", nil, scrollframe, "UIPanelScrollBarTemplate")
+		scrollbar:SetPoint("TOPLEFT", InstanceProfits_TableDisplay, "TOPRIGHT", 4, -16)
+		scrollbar:SetPoint("BOTTOMLEFT", InstanceProfits_TableDisplay, "BOTTOMRIGHT", 4, 16)
+		scrollbar:SetMinMaxValues(1, 200)
+		scrollbar:SetValueStep(1)
+		scrollbar.scrollStep = 1
+		scrollbar:SetValue(0)
+		scrollbar:SetWidth(16)
+		scrollbar:SetScript("OnValueChanged",
+		function (self, value)
+		self:GetParent():SetVerticalScroll(value)
+		end)
+		local scrollbg = scrollbar:CreateTexture(nil, "BACKGROUND")
+		scrollbg:SetAllPoints(scrollbar)
+		scrollbg:SetTexture(0, 0, 0, 0.4)
+		InstanceProfits_TableDisplay.scrollbar = scrollbar
 
-	elseif (event == "PLAYER_ENTERING_WORLD") then
-		--print("ZONE_CHANGED_NEW_AREA");
-		local name, typeOfInstance, difficulty, difficultyName, _, _, _, instanceMapId, _ = GetInstanceInfo();
-		print(GetInstanceInfo());
-		local enteredInstance = ((typeOfInstance == "raid" or typeOfInstance == "party") and ignorezones[instanceMapId] == nil and not inInstance  and GetNumGroupMembers() == 0)
-		if enteredInstance then
-			inInstance = true;
-			print("Entered " .. name);
-			print("Difficulty: " .. difficultyName);
-			if instanceDifficultyName == nil or instanceDifficultyName == "" then
-				IP_ShowLiveTracker();
-			else
+		self:UnregisterEvent("ADDON_LOADED")
+	elseif event == "PLAYER_LOGIN" then
+		currentCopperAmount = GetMoney()
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		local inInstance, instanceType = IsInInstance()
+		local wasInPvEInstance = isInPvEInstance
+		isInPvEInstance = inInstance and (instanceType == "party" or instanceType == "raid")
+
+		if isInPvEInstance then -- entered instance
+			local name, typeOfInstance, difficulty, difficultyName, _, _, _, instanceMapId = GetInstanceInfo()
+
+			if not IGNORED_ZONES[instanceMapId] then
 				triggerInstance(name, difficulty, difficultyName, enteredAlive);
 			end
-			enteredAlive = true;
-		elseif inInstance then
-			inInstance = false;
-			enteredAlive = not UnitIsDeadOrGhost("player");
-			if enteredAlive then
-				saveInstanceData();
-			end
-		end
-	elseif event == "LOOT_OPENED" and inInstance then
-		local goldPattern = GOLD_AMOUNT:gsub('%%d', '(%%d*)')
-		local silverPattern = SILVER_AMOUNT:gsub('%%d', '(%%d*)')
-		local copperPattern = COPPER_AMOUNT:gsub('%%d', '(%%d*)')
-		for i=1, GetNumLootItems() do
-			local _, item, quantity = GetLootSlotInfo(i);
-			if (quantity ~= 0) then
-				local itemLink = GetLootSlotLink(i);
-				local itemString = string.match(itemLink, "item[%-?%d:]+");
-				local _, itemId, enchantId, jewelId1, jewelId2, jewelId3, jewelId4, suffixId, uniqueId, linkLevel, reforgeId, upgradeId = strsplit(":", itemString)
-				name2, link, quality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, texture, vendorPrice = GetItemInfo(itemId);
-				if (name2 ~= nil) then
-					vendorMoney = vendorMoney + (vendorPrice * quantity);
-				else
-				    print("Querying server for info on: " .. name2);
-					lootableItems[item] = (lootableItems[item] or 0) + quantity;
+			enteredAlive = true
+		else -- entered something else
+			if wasInPvEInstance ~= isInPvEInstance then -- we actually left instance
+				enteredAlive = not UnitIsDeadOrGhost("player"); -- Check if we were a ghost when exiting
+				if enteredAlive then
+					saveInstanceData();
 				end
-			else
-				local gold = tonumber(string.match(item, goldPattern) or 0)
-				local silver = tonumber(string.match(item, silverPattern) or 0)
-				local copper = tonumber(string.match(item, copperPattern) or 0)
-				lootedMoney = lootedMoney + (gold * 100 * 100);
-				lootedMoney = lootedMoney + (silver * 100);
-				lootedMoney = lootedMoney + copper;
 			end
 		end
-		liveLoot:SetText("Looted: " .. copperToSmallString(lootedMoney));
-		liveVendor:SetText("Vendor: " .. copperToSmallString(vendorMoney));
-	elseif event == "GET_ITEM_INFO_RECEIVED" and inInstance then
-		name, link, quality, iLevel, reqLevel, class, subclass, maxStack, equipSlot, texture, vendorPrice = GetItemInfo(arg1);
-		local quantity = lootableItems[name] or 0;
-		vendorMoney = vendorMoney + (vendorPrice * quantity);
+	elseif event == "PLAYER_MONEY" and isInPvEInstance then
+		local previousCopperAmount = currentCopperAmount
+		currentCopperAmount = GetMoney()
+
+		local difference = currentCopperAmount - previousCopperAmount
+		if difference > 0 then
+			lootedMoney = lootedMoney + difference
+		end
+
+		liveLoot:SetText("Looted: " .. GetMoneyString(lootedMoney));
+	elseif event == "CHAT_MSG_LOOT" and isInPvEInstance then
+		local itemLink, quantity = strmatch(arg1, LOOT_ITEM_MULTIPLE_PATTERN)
+		if not itemLink then
+			itemLink, quantity = strmatch(arg1, LOOT_ITEM_PUSHED_MULTIPLE_PATTERN)
+			if not itemLink then
+				quantity, itemLink = 1, strmatch(arg1, LOOT_ITEM_PATTERN)
+				if not itemLink then
+					quantity, itemLink = 1, strmatch(arg1, LOOT_ITEM_PUSHED_PATTERN)
+					if not itemLink then
+						return
+					end
+				end
+			end
+		end
+
+		quantity = tonumber(quantity or 1)
+		local name, _, _, _, _, _, _, _, _, _, vendorPrice = GetItemInfo(itemLink)
+
+		if name then
+			vendorMoney = vendorMoney + (vendorPrice * quantity)
+		else
+			lootableItems[name] = (lootableItems[name] or 0) + quantity;
+		end
+
+		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney))
+	elseif event == "GET_ITEM_INFO_RECEIVED" and isInPvEInstance then
+		local name, _, _, _, _, _, _, _, _, _, vendorPrice = GetItemInfo(arg1);
+		vendorMoney = vendorMoney + (vendorPrice * (lootableItems[name] or 0));
 		lootableItems[name] = 0;
+
+		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney))
 	elseif event == "PLAYER_LOGOUT" then
-		if inInstance or not enteredAlive then
+		if isInPvEInstance or not enteredAlive then
 			saveInstanceData();
 		end
 		_G["IP_InstanceRunsCharacterHistory"] = characterHistory;
