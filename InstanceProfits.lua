@@ -25,7 +25,7 @@ local LOOT_ITEM_PUSHED_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_PUSHED_SELF_
 -- old --
 ---------
 
-local enteredAlive = true; -- need to change it, cuz it's always true, you can't enter whilst dead
+local enteredAlive = true
 instanceName, instanceDifficulty, instanceDifficultyName, startTime, startRepair = nil, nil, nil, 0, 0;
 characterHistory, globalHistory, contentButtons = {}, {}, {};
 content = nil;
@@ -283,7 +283,15 @@ end
 function IP_UpdateTime(self, elapsed)
 	elapsedTime = elapsedTime + elapsed;
 	if (not isInPvEInstance) then
-		elapsedTime = 0;
+		if startTime > 0 and not enteredAlive then
+			-- We were in an instance, but aren't anymore because we died. Don't count time spent dead as time in instance
+			if elapsedTime >= 1 then
+				elapsedTime = elapsedTime - 1
+				startTime = startTime + 1
+			end
+		else
+			elapsedTime = 0;
+		end
 	elseif (elapsedTime >= 1) then
 		if instanceDifficultyName == nil or instanceDifficultyName == "" then
 			print("NIL DIFF");
@@ -291,10 +299,7 @@ function IP_UpdateTime(self, elapsed)
 			liveDifficulty:SetText(instanceDifficultyName);
 			triggerInstance(name, instanceDifficulty, instanceDifficultyName, true);
 		end
-		elapsedTime = 0;
-		if not enteredAlive then -- never happens
-			startTime = startTime + 1
-		end
+		elapsedTime = elapsedTime - 1;
 		liveTime:SetText("Time: " .. timeToSmallString(difftime(time(), startTime)));
 	end
 end
@@ -394,11 +399,15 @@ function eventHandler(self, event, ...)
 			local name, typeOfInstance, difficulty, difficultyName, _, _, _, instanceMapId = GetInstanceInfo()
 
 			if not IGNORED_ZONES[instanceMapId] then
-				triggerInstance(name, difficulty, difficultyName, true);
+				triggerInstance(name, difficulty, difficultyName, enteredAlive);
 			end
+			enteredAlive = true
 		else -- entered something else
 			if wasInPvEInstance ~= isInPvEInstance then -- we actually left instance
-				saveInstanceData();
+				enteredAlive = not UnitIsDeadOrGhost("player"); -- Check if we were a ghost when exiting
+				if enteredAlive then
+					saveInstanceData();
+				end
 			end
 		end
 	elseif event == "PLAYER_MONEY" and isInPvEInstance then
@@ -443,7 +452,7 @@ function eventHandler(self, event, ...)
 
 		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney))
 	elseif event == "PLAYER_LOGOUT" then
-		if isInPvEInstance then
+		if isInPvEInstance or not enteredAlive then
 			saveInstanceData();
 		end
 		_G["IP_InstanceRunsCharacterHistory"] = characterHistory;
