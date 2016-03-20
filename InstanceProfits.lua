@@ -283,7 +283,15 @@ end
 function IP_UpdateTime(self, elapsed)
 	elapsedTime = elapsedTime + elapsed;
 	if (not isInPvEInstance) then
-		elapsedTime = 0;
+		if startTime > 0 and not enteredAlive then
+			-- We were in an instance, but aren't anymore because we died. Don't count time spent dead as time in instance
+			if elapsedTime >= 1 then
+				elapsedTime = elapsedTime - 1
+				startTime = startTime + 1
+			end
+		else
+			elapsedTime = 0;
+		end
 	elseif (elapsedTime >= 1) then
 		if instanceDifficultyName == nil or instanceDifficultyName == "" then
 			print("NIL DIFF");
@@ -291,10 +299,7 @@ function IP_UpdateTime(self, elapsed)
 			liveDifficulty:SetText(instanceDifficultyName);
 			triggerInstance(name, instanceDifficulty, instanceDifficultyName, true);
 		end
-		elapsedTime = 0;
-		if not enteredAlive then -- never happens
-			startTime = startTime + 1
-		end
+		elapsedTime = elapsedTime - 1;
 		liveTime:SetText("Time: " .. timeToSmallString(difftime(time(), startTime)));
 	end
 end
