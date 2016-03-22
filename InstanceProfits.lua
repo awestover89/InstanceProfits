@@ -1,11 +1,10 @@
--- Fix bug with total calculation on global history page
--- Onyxia Lair not showing difficulty
 -- TODO: Fix when logging in/out/reloading in an instance
 -- TODO: Add a expanded detail pane
 -- TODO: Check for player repairing inside dungeon
 -- TODO: OPT: Allow sorting of displayed run data
--- TODO: OPT: Fix for only items actually looted to handle groups
 -- TODO: OPT: Add Auction Value option
+-- TODO: OPT: Add filtering for what to display
+-- TODO: OPT: Add option to enable/disable when in a group
 
 ---------
 -- new --
@@ -50,8 +49,8 @@ frame:RegisterEvent("PLAYER_LOGOUT");
 frame:RegisterEvent("GET_ITEM_INFO_RECEIVED");
 
 -- loot
-frame:RegisterEvent("PLAYER_MONEY");
 frame:RegisterEvent("CHAT_MSG_LOOT");
+frame:RegisterEvent("CHAT_MSG_MONEY");
 
 function IP_PrintWelcomeMessage()
 	print("|cFF00CCFF<IP>|r Instance Profit Tracker v. " .. version .. " loaded.");
@@ -135,19 +134,22 @@ function triggerInstance(name, difficulty, difficultyName, incCount)
 		instanceDifficultyName = difficultyName;
 		startRepair = IP_CalculateRepairCost();
 		lootedMoney, vendorMoney = 0, 0;
+		currentCopperAmount = GetMoney();
 	end
 	local n = GetNumSavedInstances();
 	local saved = false;
 	for i=1, n do
-		local savedName, saveId, resets, difficulty, locked = GetSavedInstanceInfo(i);
-		if (savedName == instanceName and locked) then
+		local savedName, saveId, resets, savedDifficulty, locked = GetSavedInstanceInfo(i);
+		if (savedName == instanceName and locked and difficulty > 1) then
+			print("You are already saved to this instance")
+			print("Difficulty is " .. difficulty);
 			saved = true;
 		end
 	end
 	if (not saved and incCount) then
 		if (characterHistory[name] == nil) then
 			characterHistory[name] = {
-				[instanceDifficultyName] = {
+				[difficultyName] = {
 					['count'] = 1,
 					['totalTime'] = 0,
 					['totalRepair'] = 0,
@@ -155,8 +157,8 @@ function triggerInstance(name, difficulty, difficultyName, incCount)
 					['totalVendor'] = 0
 				}
 			};
-		elseif (characterHistory[name][instanceDifficultyName] == nil) then
-			characterHistory[name][instanceDifficultyName] = {
+		elseif (characterHistory[name][difficultyName] == nil) then
+			characterHistory[name][difficultyName] = {
 				['count'] = 1,
 				['totalTime'] = 0,
 				['totalRepair'] = 0,
@@ -164,11 +166,12 @@ function triggerInstance(name, difficulty, difficultyName, incCount)
 				['totalVendor'] = 0
 			};
 		else
-			characterHistory[name][instanceDifficultyName]['count'] = characterHistory[name][instanceDifficultyName]['count'] + 1;
+			characterHistory[name][difficultyName]['count'] = characterHistory[name][difficultyName]['count'] + 1;
+			print("Incrementing character count");
 		end
 		if (globalHistory[name] == nil) then
 			globalHistory[name] = {
-				[instanceDifficultyName] = {
+				[difficultyName] = {
 					['count'] = 1,
 					['totalTime'] = 0,
 					['totalRepair'] = 0,
@@ -176,8 +179,8 @@ function triggerInstance(name, difficulty, difficultyName, incCount)
 					['totalVendor'] = 0
 				}
 			};
-		elseif (globalHistory[name][instanceDifficultyName] == nil) then
-			globalHistory[name][instanceDifficultyName] = {
+		elseif (globalHistory[name][difficultyName] == nil) then
+			globalHistory[name][difficultyName] = {
 				['count'] = 1,
 				['totalTime'] = 0,
 				['totalRepair'] = 0,
@@ -185,13 +188,13 @@ function triggerInstance(name, difficulty, difficultyName, incCount)
 				['totalVendor'] = 0
 			};
 		else
-			globalHistory[name][instanceDifficultyName]['count'] = globalHistory[name][instanceDifficultyName]['count'] + 1;
+			globalHistory[name][difficultyName]['count'] = globalHistory[name][difficultyName]['count'] + 1;
 		end
 	end
 	IP_ShowLiveTracker();
 	print("You have entered the " .. difficultyName .. " version of " .. name);
-	print("You have recorded your profits for this instance " .. characterHistory[name][instanceDifficultyName]['count'] .. " times on this character.");
-	print("You have recorded your profits for this instance " .. globalHistory[name][instanceDifficultyName]['count'] .. " times on this account.");
+	print("You have recorded your profits for this instance " .. characterHistory[name][difficultyName]['count'] .. " times on this character.");
+	print("You have recorded your profits for this instance " .. globalHistory[name][difficultyName]['count'] .. " times on this account.");
 end
 
 function IP_DeleteInstanceData(instance, difficulty)
@@ -224,7 +227,12 @@ function IP_DisplaySavedData()
 	if displayGlobal then
 		for instance, data in pairs(globalHistory) do
 			for difficulty, values in pairs(data) do
+			if difficulty ~= "" then
 				dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
+				r = r + values['count']
+				p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
+				t = t + values['totalTime']
+			end
 			end
 		end
 		contentButtonFrame:Hide();
@@ -233,6 +241,7 @@ function IP_DisplaySavedData()
 		local offy = 8;
 		for instance, data in pairs(characterHistory) do
 			for difficulty, values in pairs(data) do
+			if difficulty ~= "" then
 				i = i + 1;
 				contentButtons[i] = contentButtons[i] or CreateFrame("Button", nil, contentButtonFrame, "UIPanelButtonTemplate");
 				contentButtons[i]:SetPoint("TOPRIGHT", 0, offy * -1);---28 * i + 16 + i * 4);
@@ -249,6 +258,7 @@ function IP_DisplaySavedData()
 				t = t + values['totalTime']
 				content.text:SetText(dataString)
 				offy = content.text:GetStringHeight() - 14;
+			end
 			end
 		end
 		for j=i+1, table.getn(contentButtons) do
@@ -294,10 +304,9 @@ function IP_UpdateTime(self, elapsed)
 		end
 	elseif (elapsedTime >= 1) then
 		if instanceDifficultyName == nil or instanceDifficultyName == "" then
-			print("NIL DIFF");
 			name, typeOfInstance, instanceDifficulty, instanceDifficultyName, _, _, _, _, _ = GetInstanceInfo();
 			liveDifficulty:SetText(instanceDifficultyName);
-			triggerInstance(name, instanceDifficulty, instanceDifficultyName, true);
+			triggerInstance(name, instanceDifficulty, instanceDifficultyName, enteredAlive);
 		end
 		elapsedTime = elapsedTime - 1;
 		liveTime:SetText("Time: " .. timeToSmallString(difftime(time(), startTime)));
@@ -307,9 +316,6 @@ end
 function saveInstanceData()
 	local totalTime = difftime(time(), startTime);
 	local endRepair = IP_CalculateRepairCost();
-	print(instanceName);
-	print(instanceDifficultyName);
-	print(characterHistory[instanceName][instanceDifficultyName])
 	characterHistory[instanceName][instanceDifficultyName]['totalTime'] = characterHistory[instanceName][instanceDifficultyName]['totalTime'] + totalTime;
 	characterHistory[instanceName][instanceDifficultyName]['totalRepair'] = characterHistory[instanceName][instanceDifficultyName]['totalRepair'] + (endRepair - startRepair);
 	characterHistory[instanceName][instanceDifficultyName]['totalLoot'] = characterHistory[instanceName][instanceDifficultyName]['totalLoot'] + lootedMoney;
@@ -343,12 +349,6 @@ function IP_ClearCharacterData()
 	characterHistory = {};
 	IP_DisplaySavedData();
 end
-
---function IP_ClearAllData()
-	--globalHistory = {};
-	--characterHistory = {};
-	--IP_DisplaySavedData();
---end
 
 function eventHandler(self, event, ...)
 	local arg1, arg2 = ...
@@ -410,16 +410,6 @@ function eventHandler(self, event, ...)
 				end
 			end
 		end
-	elseif event == "PLAYER_MONEY" and isInPvEInstance then
-		local previousCopperAmount = currentCopperAmount
-		currentCopperAmount = GetMoney()
-
-		local difference = currentCopperAmount - previousCopperAmount
-		if difference > 0 then
-			lootedMoney = lootedMoney + difference
-		end
-
-		liveLoot:SetText("Looted: " .. GetMoneyString(lootedMoney));
 	elseif event == "CHAT_MSG_LOOT" and isInPvEInstance then
 		local itemLink, quantity = strmatch(arg1, LOOT_ITEM_MULTIPLE_PATTERN)
 		if not itemLink then
@@ -451,6 +441,15 @@ function eventHandler(self, event, ...)
 		lootableItems[name] = 0;
 
 		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney))
+	elseif event == "CHAT_MSG_MONEY" then
+		local goldPattern = GOLD_AMOUNT:gsub('%%d', '(%%d*)')
+		local silverPattern = SILVER_AMOUNT:gsub('%%d', '(%%d*)')
+		local copperPattern = COPPER_AMOUNT:gsub('%%d', '(%%d*)')
+		local gold = tonumber(string.match(arg1, goldPattern) or 0)
+        local silver = tonumber(string.match(arg1, silverPattern) or 0)
+        local copper = tonumber(string.match(arg1, copperPattern) or 0)
+		lootedMoney = lootedMoney + (gold * 100 * 100) + (silver * 100) + copper
+		liveLoot:SetText("Looted: " .. GetMoneyString(lootedMoney));
 	elseif event == "PLAYER_LOGOUT" then
 		if isInPvEInstance or not enteredAlive then
 			saveInstanceData();
