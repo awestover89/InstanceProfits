@@ -12,7 +12,6 @@
 local strmatch, strgsub = string.match, string.gsub
 
 local isInPvEInstance = false
-local currentCopperAmount
 
 local IGNORED_ZONES = { [1152]=true, [1330]=true, [1153]=true, [1154]=true, [1158]=true, [1331]=true, [1159]=true, [1160]=true };
 local LOOT_ITEM_PATTERN = strgsub(LOOT_ITEM_SELF, "%%s", "(.+)")
@@ -134,7 +133,6 @@ function triggerInstance(name, difficulty, difficultyName, incCount)
 		instanceDifficultyName = difficultyName;
 		startRepair = IP_CalculateRepairCost();
 		lootedMoney, vendorMoney = 0, 0;
-		currentCopperAmount = GetMoney();
 	end
 	local n = GetNumSavedInstances();
 	local saved = false;
@@ -227,12 +225,12 @@ function IP_DisplaySavedData()
 	if displayGlobal then
 		for instance, data in pairs(globalHistory) do
 			for difficulty, values in pairs(data) do
-			if difficulty ~= "" then
-				dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
-				r = r + values['count']
-				p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
-				t = t + values['totalTime']
-			end
+				if difficulty ~= "" then
+					dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
+					r = r + values['count']
+					p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
+					t = t + values['totalTime']
+				end
 			end
 		end
 		contentButtonFrame:Hide();
@@ -241,24 +239,24 @@ function IP_DisplaySavedData()
 		local offy = 8;
 		for instance, data in pairs(characterHistory) do
 			for difficulty, values in pairs(data) do
-			if difficulty ~= "" then
-				i = i + 1;
-				contentButtons[i] = contentButtons[i] or CreateFrame("Button", nil, contentButtonFrame, "UIPanelButtonTemplate");
-				contentButtons[i]:SetPoint("TOPRIGHT", 0, offy * -1);---28 * i + 16 + i * 4);
-				contentButtons[i]:SetText("X");
-				contentButtons[i]:SetSize(16, 16);
-				contentButtons[i]:SetNormalFontObject("GameFontNormal");
-				contentButtons[i]:SetScript("OnClick", function(self, button, down)
-					IP_DeleteInstanceData(instance, difficulty);
-					IP_DisplaySavedData();
-				end);
-				dataString = dataString .. instance .. " (" .. difficulty .. ") \n           " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
-				r = r + values['count']
-				p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
-				t = t + values['totalTime']
-				content.text:SetText(dataString)
-				offy = content.text:GetStringHeight() - 14;
-			end
+				if difficulty ~= "" then
+					i = i + 1;
+					contentButtons[i] = contentButtons[i] or CreateFrame("Button", nil, contentButtonFrame, "UIPanelButtonTemplate");
+					contentButtons[i]:SetPoint("TOPRIGHT", 0, offy * -1);---28 * i + 16 + i * 4);
+					contentButtons[i]:SetText("X");
+					contentButtons[i]:SetSize(16, 16);
+					contentButtons[i]:SetNormalFontObject("GameFontNormal");
+					contentButtons[i]:SetScript("OnClick", function(self, button, down)
+						IP_DeleteInstanceData(instance, difficulty);
+						IP_DisplaySavedData();
+					end);
+					dataString = dataString .. instance .. " (" .. difficulty .. ") \n           " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
+					r = r + values['count']
+					p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
+					t = t + values['totalTime']
+					content.text:SetText(dataString)
+					offy = content.text:GetStringHeight() - 14;
+				end
 			end
 		end
 		for j=i+1, table.getn(contentButtons) do
@@ -388,8 +386,6 @@ function eventHandler(self, event, ...)
 		InstanceProfits_TableDisplay.scrollbar = scrollbar
 
 		self:UnregisterEvent("ADDON_LOADED")
-	elseif event == "PLAYER_LOGIN" then
-		currentCopperAmount = GetMoney()
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		local inInstance, instanceType = IsInInstance()
 		local wasInPvEInstance = isInPvEInstance
@@ -446,8 +442,8 @@ function eventHandler(self, event, ...)
 		local silverPattern = SILVER_AMOUNT:gsub('%%d', '(%%d*)')
 		local copperPattern = COPPER_AMOUNT:gsub('%%d', '(%%d*)')
 		local gold = tonumber(string.match(arg1, goldPattern) or 0)
-        local silver = tonumber(string.match(arg1, silverPattern) or 0)
-        local copper = tonumber(string.match(arg1, copperPattern) or 0)
+		local silver = tonumber(string.match(arg1, silverPattern) or 0)
+		local copper = tonumber(string.match(arg1, copperPattern) or 0)
 		lootedMoney = lootedMoney + (gold * 100 * 100) + (silver * 100) + copper
 		liveLoot:SetText("Looted: " .. GetMoneyString(lootedMoney));
 	elseif event == "PLAYER_LOGOUT" then
