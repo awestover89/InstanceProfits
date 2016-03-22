@@ -43,7 +43,6 @@ local frame = CreateFrame("FRAME", "InstanceProfitsFrame");
 frame:RegisterEvent("ZONE_CHANGED_NEW_AREA");
 frame:RegisterEvent("PLAYER_ENTERING_WORLD");
 frame:RegisterEvent("ADDON_LOADED");
-frame:RegisterEvent("PLAYER_LOGIN");
 frame:RegisterEvent("PLAYER_LOGOUT");
 frame:RegisterEvent("GET_ITEM_INFO_RECEIVED");
 
