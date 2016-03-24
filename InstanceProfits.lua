@@ -1,9 +1,9 @@
 -- TODO: Fix when logging in/out/reloading in an instance
 -- TODO: Add a expanded detail pane
 -- TODO: Check for player repairing inside dungeon
+-- TODO: Remember filtering preferences between reloads
 -- TODO: OPT: Allow sorting of displayed run data
 -- TODO: OPT: Add Auction Value option
--- TODO: OPT: Add filtering for what to display
 -- TODO: OPT: Add option to enable/disable when in a group
 
 ---------
@@ -18,6 +18,8 @@ local LOOT_ITEM_PATTERN = strgsub(LOOT_ITEM_SELF, "%%s", "(.+)")
 local LOOT_ITEM_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
 local LOOT_ITEM_PUSHED_PATTERN = strgsub(LOOT_ITEM_PUSHED_SELF, "%%s", "(.+)")
 local LOOT_ITEM_PUSHED_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_PUSHED_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
+local FILTER_BUTTONS = {}
+local filteredDifficulties, tempFilters = {}, {}
 
 ---------
 -- old --
@@ -224,7 +226,7 @@ function IP_DisplaySavedData()
 	if displayGlobal then
 		for instance, data in pairs(globalHistory) do
 			for difficulty, values in pairs(data) do
-				if difficulty ~= "" then
+				if filteredDifficulties[difficulty] == true then
 					dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
 					r = r + values['count']
 					p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
@@ -238,7 +240,7 @@ function IP_DisplaySavedData()
 		local offy = 8;
 		for instance, data in pairs(characterHistory) do
 			for difficulty, values in pairs(data) do
-				if difficulty ~= "" then
+				if filteredDifficulties[difficulty] == true then
 					i = i + 1;
 					contentButtons[i] = contentButtons[i] or CreateFrame("Button", nil, contentButtonFrame, "UIPanelButtonTemplate");
 					contentButtons[i]:SetPoint("TOPRIGHT", 0, offy * -1);---28 * i + 16 + i * 4);
@@ -347,6 +349,56 @@ function IP_ClearCharacterData()
 	IP_DisplaySavedData();
 end
 
+function IP_ShowFilters()
+	InstanceProfits_FilterOptions:Show();
+	table.foreach(FILTER_BUTTONS, 
+		function(k,v) 
+			if filteredDifficulties[k] == true then
+				_G[v]:SetChecked(true)
+			else
+				_G[v]:SetChecked(false)
+			end
+		end
+	)
+end
+
+function IP_Checkbutton_OnLoad(checkbutton, difficultyNum)
+	local name = GetDifficultyInfo(difficultyNum);
+	FILTER_BUTTONS[name] = checkbutton:GetName();
+	_G[checkbutton:GetName() .. "Text"]:SetText(name);
+	filteredDifficulties[name] = true
+	tempFilters[name] = true
+end
+
+function IP_Checkbutton_OnClick(checkbutton)
+	local name = _G[checkbutton:GetName() .. "Text"]:GetText();
+	if checkbutton:GetChecked() == true then
+		tempFilters[name] = true
+	else
+		tempFilters[name] = false
+	end
+end
+
+function IP_FilterApply()
+	table.foreach(tempFilters, 
+		function(k,v) 
+			filteredDifficulties[k] = v
+		end
+	)
+	InstanceProfits_FilterOptions:Hide();
+	InstanceProfits_TableDisplay:Show();
+	IP_DisplaySavedData();
+end
+
+function IP_FilterCancel()
+	table.foreach(filteredDifficulties, 
+		function(k,v) 
+			tempFilters[k] = v
+		end
+	)
+	InstanceProfits_FilterOptions:Hide();
+end
+
 function eventHandler(self, event, ...)
 	local arg1, arg2 = ...
 	if event == "ADDON_LOADED" and arg1 == "InstanceProfits" then
@@ -354,9 +406,11 @@ function eventHandler(self, event, ...)
 		instanceDifficultyName = instanceName;
 		InstanceProfits_TableDisplay:Hide();
 		InstanceProfits_LiveDisplay:Hide();
+		InstanceProfits_FilterOptions:Hide();
 
 		characterHistory = _G["IP_InstanceRunsCharacterHistory"] or {};
 		globalHistory = _G["IP_InstanceRunsGlobalHistory"] or {};
+		filteredDifficulties = _G["IP_DifficultyFilters"] or filteredDifficulties;
 
 		IP_PrintWelcomeMessage();
 		--scrollframe
@@ -451,6 +505,7 @@ function eventHandler(self, event, ...)
 		end
 		_G["IP_InstanceRunsCharacterHistory"] = characterHistory;
 		_G["IP_InstanceRunsGlobalHistory"] = globalHistory;
+		_G["IP_DifficultyFilters"] = filteredDifficulties;
 	end
 end
 frame:SetScript("OnEvent", eventHandler);
@@ -459,6 +514,8 @@ SLASH_INSTANCEPROFITS1, SLASH_INSTANCEPROFITS2, SLASH_INSTANCEPROFITS3 = '/ip', 
 function SlashCmdList.INSTANCEPROFITS(msg, editbox)
 	if msg == 'live' then
 		IP_ShowLiveTracker();
+	elseif msg == 'filter' then
+		IP_ShowFilters()
 	else
 		InstanceProfits_TableDisplay:Show();
 		IP_DisplaySavedData();
