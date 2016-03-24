@@ -18,7 +18,7 @@
 			<BackgroundInsets>
 				<AbsInset left="4" right="3" top="4" bottom="3" />
 			</BackgroundInsets>
-			<Color r="0.2" g="0.2" b="0.2" a="0.7" />
+			<Color r="0.2" g="0.2" b="0.2" a="0.9" />
 		</Backdrop>
 		<Frames>
 			<Frame name="$parent_TitleBar" enableMouse="true">

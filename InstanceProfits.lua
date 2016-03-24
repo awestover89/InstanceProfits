@@ -223,13 +223,21 @@ function IP_DisplaySavedData()
 	if displayGlobal then
 		for index, instance in pairs(globalSortedInstances) do
 			data = globalHistory[instance]
+			local firstPrint = true;
 			for difficulty, values in pairs(data) do
 				if filteredDifficulties[difficulty] == true then
-					dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
+					if firstPrint then									
+						dataString = dataString .. instance .. "\n";
+						firstPrint = false
+					end
+					dataString = dataString .. "    (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n";
 					r = r + values['count']
 					p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
 					t = t + values['totalTime']
 				end
+			end
+			if not firstPrint then
+				dataString = dataString .. "\n";
 			end
 		end
 		contentButtonFrame:Hide();
@@ -238,11 +246,16 @@ function IP_DisplaySavedData()
 		local offy = 8;
 		for index, instance in pairs(characterSortedInstances) do
 			data = characterHistory[instance]
+			local firstPrint = true;
 			for difficulty, values in pairs(data) do
 				if filteredDifficulties[difficulty] == true then
+					if firstPrint then
+						dataString = dataString .. "       " .. instance .. "\n";
+						firstPrint = false;
+					end
 					i = i + 1;
 					contentButtons[i] = contentButtons[i] or CreateFrame("Button", nil, contentButtonFrame, "UIPanelButtonTemplate");
-					contentButtons[i]:SetPoint("TOPRIGHT", 0, offy * -1);---28 * i + 16 + i * 4);
+					contentButtons[i]:SetPoint("TOPLEFT", 0, offy * -1);---28 * i + 16 + i * 4);
 					contentButtons[i]:SetText("X");
 					contentButtons[i]:SetSize(16, 16);
 					contentButtons[i]:SetNormalFontObject("GameFontNormal");
@@ -251,13 +264,18 @@ function IP_DisplaySavedData()
 						IP_DisplaySavedData();
 					end);
 					contentButtons[i]:Show();
-					dataString = dataString .. instance .. " (" .. difficulty .. ") \n           " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
+					dataString = dataString .. "              (" .. difficulty .. ") " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n";
 					r = r + values['count']
 					p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
 					t = t + values['totalTime']
 					content.text:SetText(dataString)
 					offy = content.text:GetStringHeight() - 14;
 				end
+			end
+			if not firstPrint then
+				dataString = dataString .. "\n";
+				content.text:SetText(dataString)
+				offy = content.text:GetStringHeight() - 14;
 			end
 		end
 		for j=i+1, table.getn(contentButtons) do
