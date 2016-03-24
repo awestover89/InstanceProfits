@@ -19,7 +19,7 @@ local LOOT_ITEM_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_SELF_MULTIPLE, "%%s
 local LOOT_ITEM_PUSHED_PATTERN = strgsub(LOOT_ITEM_PUSHED_SELF, "%%s", "(.+)")
 local LOOT_ITEM_PUSHED_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_PUSHED_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
 local FILTER_BUTTONS = {}
-local filteredDifficulties, tempFilters = {}, {}
+local filteredDifficulties, tempFilters, globalSortedInstances, characterSortedInstances = {}, {}, {}, {}
 
 ---------
 -- old --
@@ -224,7 +224,8 @@ function IP_DisplaySavedData()
 	local i = 0;
 	local r, p, t = 0, 0, 0;
 	if displayGlobal then
-		for instance, data in pairs(globalHistory) do
+		for index, instance in pairs(globalSortedInstances) do
+			data = globalHistory[instance]
 			for difficulty, values in pairs(data) do
 				if filteredDifficulties[difficulty] == true then
 					dataString = dataString .. instance .. " (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
@@ -238,7 +239,8 @@ function IP_DisplaySavedData()
 	else
 		contentButtonFrame:Show();
 		local offy = 8;
-		for instance, data in pairs(characterHistory) do
+		for index, instance in pairs(characterSortedInstances) do
+			data = characterHistory[instance]
 			for difficulty, values in pairs(data) do
 				if filteredDifficulties[difficulty] == true then
 					i = i + 1;
@@ -399,6 +401,17 @@ function IP_FilterCancel()
 	InstanceProfits_FilterOptions:Hide();
 end
 
+function IP_SortData(field)
+	characterSortedInstances = {}
+	globalSortedInstances = {}
+	if field == "name" then
+		for n in pairs(characterHistory) do table.insert(characterSortedInstances, n) end
+		table.sort(characterSortedInstances)
+		for n in pairs(globalHistory) do table.insert(globalSortedInstances, n) end
+		table.sort(globalSortedInstances)
+	end
+end
+
 function eventHandler(self, event, ...)
 	local arg1, arg2 = ...
 	if event == "ADDON_LOADED" and arg1 == "InstanceProfits" then
@@ -437,6 +450,7 @@ function eventHandler(self, event, ...)
 		scrollbg:SetAllPoints(scrollbar)
 		scrollbg:SetTexture(0, 0, 0, 0.4)
 		InstanceProfits_TableDisplay.scrollbar = scrollbar
+		IP_SortData("name")
 
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_ENTERING_WORLD" then
@@ -516,6 +530,8 @@ function SlashCmdList.INSTANCEPROFITS(msg, editbox)
 		IP_ShowLiveTracker();
 	elseif msg == 'filter' then
 		IP_ShowFilters()
+	elseif msg == 'sort' then
+		IP_SortData("name")
 	else
 		InstanceProfits_TableDisplay:Show();
 		IP_DisplaySavedData();
