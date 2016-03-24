@@ -1,7 +1,6 @@
 -- TODO: Fix when logging in/out/reloading in an instance
 -- TODO: Add a expanded detail pane
 -- TODO: Check for player repairing inside dungeon
--- TODO: Fix display of multiple difficulties for the same instance
 -- TODO: OPT: Add Auction Value option
 -- TODO: OPT: Add option to enable/disable when in a group
 
