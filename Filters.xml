@@ -99,11 +99,28 @@
 					</OnClick>
 				</Scripts>
 			</Button>
+			<Button name="$parent_SortDropDown" inherits="UIDropDownMenuTemplate">
+				<Scripts>
+					<OnLoad>
+						UIDropDownMenu_Initialize(self, IP_BuildSortDropdown);
+						self.selectedName = "Name (Asc)";
+						self.selectedValue = "nameA";
+						UIDropDownMenu_SetText(self, self.selectedName);
+					</OnLoad>
+				</Scripts>
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="70" y="-60"></AbsDimension>
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</Button>
 			<CheckButton name="$parentNormalFilter" inherits="OptionsCheckButtonTemplate" checked="true" text="Normal">
 				<Anchors>
 					<Anchor point="TOPLEFT">
 						<Offset>
-							<AbsDimension x="20" y="-50"></AbsDimension>
+							<AbsDimension x="20" y="-90"></AbsDimension>
 						</Offset>
 					</Anchor>
 				</Anchors>
@@ -120,7 +137,7 @@
 				<Anchors>
 					<Anchor point="TOPLEFT">
 						<Offset>
-							<AbsDimension x="20" y="-75"></AbsDimension>
+							<AbsDimension x="20" y="-115"></AbsDimension>
 						</Offset>
 					</Anchor>
 				</Anchors>
@@ -137,7 +154,7 @@
 				<Anchors>
 					<Anchor point="TOPLEFT">
 						<Offset>
-							<AbsDimension x="20" y="-100"></AbsDimension>
+							<AbsDimension x="20" y="-140"></AbsDimension>
 						</Offset>
 					</Anchor>
 				</Anchors>
@@ -154,7 +171,7 @@
 				<Anchors>
 					<Anchor point="TOPLEFT">
 						<Offset>
-							<AbsDimension x="20" y="-125"></AbsDimension>
+							<AbsDimension x="20" y="-165"></AbsDimension>
 						</Offset>
 					</Anchor>
 				</Anchors>
@@ -171,7 +188,7 @@
 				<Anchors>
 					<Anchor point="TOPLEFT">
 						<Offset>
-							<AbsDimension x="20" y="-150"></AbsDimension>
+							<AbsDimension x="20" y="-190"></AbsDimension>
 						</Offset>
 					</Anchor>
 				</Anchors>
@@ -188,7 +205,7 @@
 				<Anchors>
 					<Anchor point="TOPLEFT">
 						<Offset>
-							<AbsDimension x="20" y="-175"></AbsDimension>
+							<AbsDimension x="20" y="-215"></AbsDimension>
 						</Offset>
 					</Anchor>
 				</Anchors>
@@ -202,5 +219,26 @@
 				</Scripts>
 			</CheckButton>
 		</Frames>
+		<Layers>
+			<Layer level="ARTWORK">
+				<FontString name="$parent_SortString"
+							inherits="SystemFont_Med3"
+							text="Sort By: "
+							justifyV="TOP"
+							justifyH="RIGHT">
+					<Size>
+						<AbsDimension x="0" y="15" />
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset>
+								<AbsDimension x="20" y="-65" />
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<Color r="1" g=".8" b="0.2" a="1" />
+				</FontString>
+			</Layer>
+		</Layers>
 	</Frame>
 </Ui>

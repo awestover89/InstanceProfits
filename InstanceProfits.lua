@@ -1,8 +1,7 @@
 -- TODO: Fix when logging in/out/reloading in an instance
 -- TODO: Add a expanded detail pane
 -- TODO: Check for player repairing inside dungeon
--- TODO: Remember filtering preferences between reloads
--- TODO: OPT: Allow sorting of displayed run data
+-- TODO: Fix display of multiple difficulties for the same instance
 -- TODO: OPT: Add Auction Value option
 -- TODO: OPT: Add option to enable/disable when in a group
 
@@ -20,6 +19,7 @@ local LOOT_ITEM_PUSHED_PATTERN = strgsub(LOOT_ITEM_PUSHED_SELF, "%%s", "(.+)")
 local LOOT_ITEM_PUSHED_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_PUSHED_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
 local FILTER_BUTTONS = {}
 local filteredDifficulties, tempFilters, globalSortedInstances, characterSortedInstances = {}, {}, {}, {}
+local sortDir, tempSortDir = "nameA", "nameA"
 
 ---------
 -- old --
@@ -385,8 +385,10 @@ function IP_FilterApply()
 			filteredDifficulties[k] = v
 		end
 	)
+	sortDir = tempSortDir;
 	InstanceProfits_FilterOptions:Hide();
 	InstanceProfits_TableDisplay:Show();
+	IP_SortData(sortDir)
 	IP_DisplaySavedData();
 end
 
@@ -396,17 +398,170 @@ function IP_FilterCancel()
 			tempFilters[k] = v
 		end
 	)
+	tempSortDir = sortDir;
+	UIDropDownMenu_SetSelectedValue(UIDROPDOWNMENU_OPEN_MENU, sortDir);
 	InstanceProfits_FilterOptions:Hide();
 end
 
 function IP_SortData(field)
 	characterSortedInstances = {}
 	globalSortedInstances = {}
-	if field == "name" then
-		for n in pairs(characterHistory) do table.insert(characterSortedInstances, n) end
+	for n in pairs(characterHistory) do table.insert(characterSortedInstances, n) end
+	for n in pairs(globalHistory) do table.insert(globalSortedInstances, n) end
+	if field == "nameA" then
 		table.sort(characterSortedInstances)
-		for n in pairs(globalHistory) do table.insert(globalSortedInstances, n) end
 		table.sort(globalSortedInstances)
+	elseif field == "nameD" then
+		table.sort(characterSortedInstances, function(a,b) return a > b end)
+		table.sort(globalSortedInstances, function(a,b) return a > b end)
+	elseif field == "timeA" then 
+		table.sort(globalSortedInstances, 
+			function(a,b)
+				local timeA = 0
+				local timeB = 0
+				for difficulty, data in pairs(globalHistory[a]) do
+					timeA = timeA + data["totalTime"]
+				end
+				for difficulty, data in pairs(globalHistory[b]) do
+					timeB = timeB + data["totalTime"]
+				end
+				return timeA < timeB;
+			end
+		)
+		table.sort(characterSortedInstances, 
+			function(a,b)
+				local timeA = 0
+				local timeB = 0
+				for difficulty, data in pairs(characterHistory[a]) do
+					timeA = timeA + data["totalTime"]
+				end
+				for difficulty, data in pairs(characterHistory[b]) do
+					timeB = timeB + data["totalTime"]
+				end
+				return timeA < timeB;
+			end
+		)
+		elseif field == "timeD" then 
+		table.sort(globalSortedInstances, 
+			function(a,b)
+				local timeA = 0
+				local timeB = 0
+				for difficulty, data in pairs(globalHistory[a]) do
+					timeA = timeA + data["totalTime"]
+				end
+				for difficulty, data in pairs(globalHistory[b]) do
+					timeB = timeB + data["totalTime"]
+				end
+				return timeA > timeB;
+			end
+		)
+		table.sort(characterSortedInstances, 
+			function(a,b)
+				local timeA = 0
+				local timeB = 0
+				for difficulty, data in pairs(characterHistory[a]) do
+					timeA = timeA + data["totalTime"]
+				end
+				for difficulty, data in pairs(characterHistory[b]) do
+					timeB = timeB + data["totalTime"]
+				end
+				return timeA > timeB;
+			end
+		)
+	elseif field == "profitA" then 
+		table.sort(globalSortedInstances, 
+			function(a,b)
+				local profitA = 0
+				local profitB = 0
+				for difficulty, data in pairs(globalHistory[a]) do
+					profitA = profitA + data["totalVendor"] + data["totalLoot"] - data["totalRepair"]
+				end
+				for difficulty, data in pairs(globalHistory[b]) do
+					profitB = profitB + data["totalVendor"] + data["totalLoot"] - data["totalRepair"]
+				end
+				return profitA < profitB;
+			end
+		)
+		table.sort(characterSortedInstances, 
+			function(a,b)
+				local profitA = 0
+				local profitB = 0
+				for difficulty, data in pairs(characterHistory[a]) do
+					profitA = profitA + data["totalVendor"] + data["totalLoot"] - data["totalRepair"]
+				end
+				for difficulty, data in pairs(characterHistory[b]) do
+					profitB = profitB + data["totalVendor"] + data["totalLoot"] - data["totalRepair"]
+				end
+				return profitA < profitB;
+			end
+		)
+	elseif field == "profitD" then 
+		table.sort(globalSortedInstances, 
+			function(a,b)
+				local profitA = 0
+				local profitB = 0
+				for difficulty, data in pairs(globalHistory[a]) do
+					profitA = profitA + data["totalVendor"] + data["totalLoot"] - data["totalRepair"]
+				end
+				for difficulty, data in pairs(globalHistory[b]) do
+					profitB = profitB + data["totalVendor"] + data["totalLoot"] - data["totalRepair"]
+				end
+				return profitA > profitB;
+			end
+		)
+		table.sort(characterSortedInstances, 
+			function(a,b)
+				local profitA = 0
+				local profitB = 0
+				for difficulty, data in pairs(characterHistory[a]) do
+					profitA = profitA + data["totalVendor"] + data["totalLoot"] - data["totalRepair"]
+				end
+				for difficulty, data in pairs(characterHistory[b]) do
+					profitB = profitB + data["totalVendor"] + data["totalLoot"] - data["totalRepair"]
+				end
+				return profitA > profitB;
+			end
+		)
+	end
+end
+
+function IP_BuildSortDropdown()
+	local info = UIDropDownMenu_CreateInfo();
+	info.text = "Name (Asc)";
+	info.value = "nameA";
+	info.func = IP_SortSelect;
+	UIDropDownMenu_AddButton(info)
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "Name (Desc)";
+	info.value = "nameD";
+	info.func = IP_SortSelect;
+	UIDropDownMenu_AddButton(info)
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "Profit (Asc)";
+	info.value = "profitA";
+	info.func = IP_SortSelect;
+	UIDropDownMenu_AddButton(info)
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "Profit (Desc)";
+	info.value = "profitD";
+	info.func = IP_SortSelect;
+	UIDropDownMenu_AddButton(info)
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "Time (Asc)";
+	info.value = "timeA";
+	info.func = IP_SortSelect;
+	UIDropDownMenu_AddButton(info)
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "Time (Desc)";
+	info.value = "timeD";
+	info.func = IP_SortSelect;
+	UIDropDownMenu_AddButton(info)
+end
+
+function IP_SortSelect(self, arg1, arg2, checked)
+	if not checked then
+		UIDropDownMenu_SetSelectedValue(UIDROPDOWNMENU_OPEN_MENU, self.value);
+		tempSortDir = self.value;
 	end
 end
 
@@ -448,7 +603,7 @@ function eventHandler(self, event, ...)
 		scrollbg:SetAllPoints(scrollbar)
 		scrollbg:SetTexture(0, 0, 0, 0.4)
 		InstanceProfits_TableDisplay.scrollbar = scrollbar
-		IP_SortData("name")
+		IP_SortData("nameA")
 
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_ENTERING_WORLD" then
@@ -529,7 +684,7 @@ function SlashCmdList.INSTANCEPROFITS(msg, editbox)
 	elseif msg == 'filter' then
 		IP_ShowFilters()
 	elseif msg == 'sort' then
-		IP_SortData("name")
+		IP_SortData("timeD")
 	else
 		InstanceProfits_TableDisplay:Show();
 		IP_DisplaySavedData();
