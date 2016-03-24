@@ -140,8 +140,6 @@ function triggerInstance(name, difficulty, difficultyName, incCount)
 	for i=1, n do
 		local savedName, saveId, resets, savedDifficulty, locked = GetSavedInstanceInfo(i);
 		if (savedName == instanceName and locked and difficulty > 1) then
-			print("You are already saved to this instance")
-			print("Difficulty is " .. difficulty);
 			saved = true;
 		end
 	end
@@ -166,7 +164,6 @@ function triggerInstance(name, difficulty, difficultyName, incCount)
 			};
 		else
 			characterHistory[name][difficultyName]['count'] = characterHistory[name][difficultyName]['count'] + 1;
-			print("Incrementing character count");
 		end
 		if (globalHistory[name] == nil) then
 			globalHistory[name] = {
@@ -253,6 +250,7 @@ function IP_DisplaySavedData()
 						IP_DeleteInstanceData(instance, difficulty);
 						IP_DisplaySavedData();
 					end);
+					contentButtons[i]:Show();
 					dataString = dataString .. instance .. " (" .. difficulty .. ") \n           " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n\n";
 					r = r + values['count']
 					p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']

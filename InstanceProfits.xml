@@ -108,8 +108,7 @@
 					<OnClick> self:GetParent():Hide(); </OnClick>
 			    </Scripts>
 			</Button>
-			<!-- Deleting all data won't work with the way that data is saved on a per character basis
-			<Button name="$parent_ButtonResetAll" inherits="OptionsButtonTemplate" text="Reset All Data">
+			<Button name="$parent_ButtonFilter" inherits="OptionsButtonTemplate" text="Filter Results">
 				<Anchors>
 					<Anchor point="BOTTOMLEFT">
 						<Offset x="12" y="16"/>
@@ -119,10 +118,9 @@
 					<AbsDimension x="110" y="21" />
 				</Size>
 			    <Scripts>
-					<OnClick> IP_ClearAllData(); </OnClick>
+					<OnClick> IP_ShowFilters(); </OnClick>
 			    </Scripts>
 			</Button>
-			-->
 			<Button name="$parent_ButtonResetChar" inherits="OptionsButtonTemplate" text="Reset Character Data">
 				<Anchors>
 					<Anchor point="BOTTOM">
