@@ -7,3 +7,4 @@ InstanceProfits.lua
 InstanceProfits.xml
 LiveTracker.xml
 Filters.xml
+Details.xml
