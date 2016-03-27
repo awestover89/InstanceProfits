@@ -1,6 +1,6 @@
 -- TODO: Fix when logging in/out/reloading in an instance
--- TODO: Add a expanded detail pane
 -- TODO: Check for player repairing inside dungeon
+-- TODO: Refactor and clean code into multiple LUA files
 -- TODO: OPT: Add Auction Value option
 -- TODO: OPT: Add option to enable/disable when in a group
 
@@ -26,9 +26,9 @@ local sortDir, tempSortDir = "nameA", "nameA"
 
 local enteredAlive = true
 instanceName, instanceDifficulty, instanceDifficultyName, startTime, startRepair = nil, nil, nil, 0, 0;
-characterHistory, globalHistory, contentButtons = {}, {}, {};
+characterHistory, globalHistory, contentButtons, detailButtons = {}, {}, {}, {};
 content = nil;
-contentButtonFrame = nil;
+contentButtonFrame, detailButtonFrame = nil, nil;
 displayGlobal = false;
 repairTooltip = nil;
 liveName = nil;
@@ -36,9 +36,10 @@ liveDifficulty = nil;
 liveTime = nil;
 liveLoot = nil;
 liveVendor = nil;
+detailedHeader, charDetails, acctDetails = nil, nil, nil;
 local lootableItems = {};
 local elapsedTime, lootedMoney, vendorMoney = 0, 0, 0;
-local version = "0.3.1";
+local version = "0.4.1";
 
 local frame = CreateFrame("FRAME", "InstanceProfitsFrame");
 frame:RegisterEvent("ZONE_CHANGED_NEW_AREA");
@@ -209,6 +210,9 @@ function IP_DisplaySavedData()
 	contentButtonFrame = contentButtonFrame or CreateFrame("Frame", nil, content);
 	contentButtonFrame:SetAllPoints(true);
 	contentButtonFrame:SetWidth(20);
+	detailButtonFrame = detailButtonFrame or CreateFrame("Frame", nil, content);
+	detailButtonFrame:SetAllPoints(true);
+	detailButtonFrame:SetWidth(20);
 	content.text = content.text or content:CreateFontString(nil,"ARTWORK","SystemFont_Med1")
 	content:SetHeight(10000);
 	content:SetWidth(450);
@@ -217,9 +221,10 @@ function IP_DisplaySavedData()
 	content.text:SetJustifyV("TOP")
 	content.text:SetTextColor(0,.8,1,1)
 	local dataString = "\n";
-	local i = 0;
+	local i, j = 0, 0;
 	local r, p, t = 0, 0, 0;
 	if displayGlobal then
+		local offy = 8
 		for index, instance in pairs(globalSortedInstances) do
 			data = globalHistory[instance]
 			local firstPrint = true;
@@ -227,21 +232,40 @@ function IP_DisplaySavedData()
 				if filteredDifficulties[difficulty] == true then
 					if firstPrint then									
 						dataString = dataString .. instance .. "\n";
-						firstPrint = false
+						j = j + 1;
+						detailButtons[j] = detailButtons[j] or CreateFrame("Button", nil, detailButtonFrame, "UIPanelButtonTemplate");
+						detailButtons[j]:SetPoint("TOPRIGHT", 0, offy * -1);
+						detailButtons[j]:SetText("Details");
+						detailButtons[j]:SetSize(60, 20);
+						detailButtons[j]:SetNormalFontObject("GameFontNormal");
+						detailButtons[j]:SetScript("OnClick", function(self, button, down)
+							IP_ShowDetails(instance);
+						end);
+						detailButtons[j].tooltip_text = "View enhanced details of saved data for " .. instance;
+						detailButtons[j]:SetScript("OnEnter", IP_TippedButtonOnEnter)
+						detailButtons[j]:SetScript("OnLeave", IP_TippedButtonOnLeave)
+						detailButtons[j]:Show();
+						firstPrint = false;
 					end
 					dataString = dataString .. "    (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n";
 					r = r + values['count']
 					p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
 					t = t + values['totalTime']
+					content.text:SetText(dataString)
+					offy = content.text:GetStringHeight() - 14;
 				end
 			end
 			if not firstPrint then
 				dataString = dataString .. "\n";
+				content.text:SetText(dataString)
+				offy = content.text:GetStringHeight() - 14;
 			end
 		end
 		contentButtonFrame:Hide();
+		detailButtonFrame:Show();
 	else
 		contentButtonFrame:Show();
+		detailButtonFrame:Show();
 		local offy = 8;
 		for index, instance in pairs(characterSortedInstances) do
 			data = characterHistory[instance]
@@ -250,6 +274,19 @@ function IP_DisplaySavedData()
 				if filteredDifficulties[difficulty] == true then
 					if firstPrint then
 						dataString = dataString .. "       " .. instance .. "\n";
+						j = j + 1;
+						detailButtons[j] = detailButtons[j] or CreateFrame("Button", nil, detailButtonFrame, "UIPanelButtonTemplate");
+						detailButtons[j]:SetPoint("TOPRIGHT", 0, offy * -1);
+						detailButtons[j]:SetText("Details");
+						detailButtons[j]:SetSize(60, 20);
+						detailButtons[j]:SetNormalFontObject("GameFontNormal");
+						detailButtons[j]:SetScript("OnClick", function(self, button, down)
+							IP_ShowDetails(instance);
+						end);
+						detailButtons[j].tooltip_text = "View enhanced details of saved data for " .. instance;
+						detailButtons[j]:SetScript("OnEnter", IP_TippedButtonOnEnter)
+						detailButtons[j]:SetScript("OnLeave", IP_TippedButtonOnLeave)
+						detailButtons[j]:Show();
 						firstPrint = false;
 					end
 					i = i + 1;
@@ -259,9 +296,15 @@ function IP_DisplaySavedData()
 					contentButtons[i]:SetSize(16, 16);
 					contentButtons[i]:SetNormalFontObject("GameFontNormal");
 					contentButtons[i]:SetScript("OnClick", function(self, button, down)
-						IP_DeleteInstanceData(instance, difficulty);
-						IP_DisplaySavedData();
+						StaticPopupDialogs["IP_Confirm_Delete"].OnAccept = function() 
+							IP_DeleteInstanceData(instance, difficulty);
+							IP_DisplaySavedData();
+						end
+						StaticPopup_Show("IP_Confirm_Delete", instance .. " (" .. difficulty .. ")");
 					end);
+					contentButtons[i].tooltip_text = "Delete saved data for " .. instance .. " (" .. difficulty .. ") for " .. GetUnitName("player");
+					contentButtons[i]:SetScript("OnEnter", IP_TippedButtonOnEnter)
+					contentButtons[i]:SetScript("OnLeave", IP_TippedButtonOnLeave)
 					contentButtons[i]:Show();
 					dataString = dataString .. "              (" .. difficulty .. ") " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n";
 					r = r + values['count']
@@ -277,10 +320,14 @@ function IP_DisplaySavedData()
 				offy = content.text:GetStringHeight() - 14;
 			end
 		end
-		for j=i+1, table.getn(contentButtons) do
+		for k=i+1, table.getn(contentButtons) do
 			-- We deleted some instance data, so we have some extra buttons
-			contentButtons[j]:Hide();
+			contentButtons[k]:Hide();
 		end
+	end
+	for l=j+1, table.getn(detailButtons) do
+		-- We deleted some instance data, so we have some extra buttons
+		detailButtons[l]:Hide();
 	end
 	dataString = dataString .. "Totals: \n           Runs: " .. r .. "\n           Profit: " .. GetMoneyString(p) .. "\n           Time: " .. timeToSmallString(t) .. "\n\n"
 	content.text:SetText(dataString)
@@ -294,6 +341,16 @@ function IP_DisplaySavedData()
 	end
 	scrollbar:SetMinMaxValues(1, scrollMax)
 	scrollframe:SetScrollChild(content)
+end
+
+function IP_TippedButtonOnEnter(self)
+	GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+	GameTooltip:SetText(self.tooltip_text, nil, nil, nil, nil, true);
+	GameTooltip:Show();
+end
+
+function IP_TippedButtonOnLeave()
+	GameTooltip:Hide();
 end
 
 function IP_ToggleDisplayGlobal()
@@ -415,8 +472,10 @@ function IP_FilterCancel()
 			tempFilters[k] = v
 		end
 	)
-	tempSortDir = sortDir;
-	UIDropDownMenu_SetSelectedValue(UIDROPDOWNMENU_OPEN_MENU, sortDir);
+	if tempSortDir ~= sortDir then
+		tempSortDir = sortDir;
+		UIDropDownMenu_SetSelectedValue(UIDROPDOWNMENU_OPEN_MENU, sortDir);
+	end
 	InstanceProfits_FilterOptions:Hide();
 end
 
@@ -582,6 +641,95 @@ function IP_SortSelect(self, arg1, arg2, checked)
 	end
 end
 
+function copperToSmallString(copper) 
+	local goldString = "";
+	if copper < 0 then
+		copper = math.abs(copper);
+		goldString = "";
+	end
+	local gold = math.floor(copper/10000);
+	copper = copper - gold * 10000;
+	local silver = math.floor(copper/100);
+	copper = copper - silver * 100;
+	goldString = goldString .. gold .. "|TInterface\\MoneyFrame\\UI-GoldIcon:10:10:0:-7|t" .. silver .. "|TInterface\\MoneyFrame\\UI-SilverIcon:10:10:0:-7|t" .. copper .. "|TInterface\\MoneyFrame\\UI-CopperIcon:10:10:0:-7|t";
+	return goldString;
+end
+
+function IP_ShowDetails(instanceName)
+	InstanceProfits_DetailedDisplay:Show()
+	InstanceProfits_DetailedDisplay:SetFrameStrata("HIGH")
+	InstanceProfits_DetailedDisplay:Raise()
+	detailedHeader = detailedHeader or InstanceProfits_DetailedDisplay:CreateFontString(nil, "ARTWORK","SystemFont_Huge2");
+	charDetails = charDetails or InstanceProfits_DetailedDisplay:CreateFontString(nil, "ARTWORK","NumberFontNormal");
+	acctDetails = acctDetails or InstanceProfits_DetailedDisplay:CreateFontString(nil, "ARTWORK","NumberFontNormal");
+	local charText = GetUnitName("player") .. "\n";
+	local acctText = "Account\n";
+	local runs, vendor, loot, repair, seconds, difficulties = 0, 0, 0, 0, 0, 0
+	if characterHistory[instanceName] ~= nil then
+		for difficulty, data in pairs(characterHistory[instanceName]) do
+			if difficulty ~= "" then
+				charText = charText .. "\n";
+				difficulties = difficulties + 1
+				runs = runs + data["count"]
+				vendor = vendor + data["totalVendor"]
+				loot = loot + data["totalLoot"]
+				repair = repair + data["totalRepair"]
+				seconds = seconds + data["totalTime"]
+				charText = charText .. difficulty .. "\n" ..  data["count"] .. " runs in " .. math.floor(data["totalTime"]/60) .. " minutes and " .. (data["totalTime"] % 60) .. " seconds\n";
+				charText = charText .. "Vendor Price of Items: " .. copperToSmallString(data["totalVendor"]) .. "\n";
+				charText = charText .. "Gold Looted: " .. copperToSmallString(data["totalLoot"]) .. "\n";
+				charText = charText .. "Cost to Repair: " .. copperToSmallString(data["totalRepair"]) .. "\n";
+				charText = charText .. "Average Profit per Run: " .. copperToSmallString(math.floor((data["totalVendor"] + data["totalLoot"] - data["totalRepair"])/data["count"])) .. "\n";
+				charText = charText .. "Average Profit per Hour: " .. copperToSmallString(math.floor((data["totalVendor"] + data["totalLoot"] - data["totalRepair"])/(data["totalTime"]/3600))) .. "\n";
+			end
+		end
+		if difficulties > 1 then
+			charText = charText .. "\nGrand Total\n" ..  runs .. " runs in " .. math.floor(seconds/60) .. " minutes and " .. (seconds % 60) .. " seconds\n";
+			charText = charText .. "Vendor Price of Items: " .. copperToSmallString(vendor) .. "\n";
+			charText = charText .. "Gold Looted: " .. copperToSmallString(loot) .. "\n";
+			charText = charText .. "Cost to Repair: " .. copperToSmallString(repair) .. "\n";
+			charText = charText .. "Average Profit per Run: " .. copperToSmallString(math.floor((vendor + loot - repair)/runs)) .. "\n";
+			charText = charText .. "Average Profit per Hour: " .. copperToSmallString(math.floor((vendor + loot - repair)/(seconds/3600))) .. "\n";
+		end
+	end
+	runs, vendor, loot, repair, seconds, difficulties = 0, 0, 0, 0, 0, 0
+	if globalHistory[instanceName] ~= nil then
+		for difficulty, data in pairs(globalHistory[instanceName]) do
+			if difficulty ~= "" then
+			acctText = acctText .. "\n";
+			difficulties = difficulties + 1
+			runs = runs + data["count"]
+			vendor = vendor + data["totalVendor"]
+			loot = loot + data["totalLoot"]
+			repair = repair + data["totalRepair"]
+			seconds = seconds + data["totalTime"]
+			acctText = acctText .. difficulty .. "\n" ..  data["count"] .. " runs in " .. math.floor(data["totalTime"]/60) .. " minutes and " .. (data["totalTime"] % 60) .. " seconds\n";
+			acctText = acctText .. "Vendor Price of Items: " .. copperToSmallString(data["totalVendor"]) .. "\n";
+			acctText = acctText .. "Gold Looted: " .. copperToSmallString(data["totalLoot"]) .. "\n";
+			acctText = acctText .. "Cost to Repair: " .. copperToSmallString(data["totalRepair"]) .. "\n";
+			acctText = acctText .. "Average Profit per Run: " .. copperToSmallString(math.floor((data["totalVendor"] + data["totalLoot"] - data["totalRepair"])/data["count"])) .. "\n";
+			acctText = acctText .. "Average Profit per Hour: " .. copperToSmallString(math.floor((data["totalVendor"] + data["totalLoot"] - data["totalRepair"])/(data["totalTime"]/3600))) .. "\n";
+			end
+		end
+		if difficulties > 1 then
+			acctText = acctText .. "\nGrand Total\n" ..  runs .. " runs in " .. math.floor(seconds/60) .. " minutes and " .. (seconds % 60) .. " seconds\n";
+			acctText = acctText .. "Vendor Price of Items: " .. copperToSmallString(vendor) .. "\n";
+			acctText = acctText .. "Gold Looted: " .. copperToSmallString(loot) .. "\n";
+			acctText = acctText .. "Cost to Repair: " .. copperToSmallString(repair) .. "\n";
+			acctText = acctText .. "Average Profit per Run: " .. copperToSmallString(math.floor((vendor + loot - repair)/runs)) .. "\n";
+			acctText = acctText .. "Average Profit per Hour: " .. copperToSmallString(math.floor((vendor + loot - repair)/(seconds/3600))) .. "\n";
+		end
+	end
+	detailedHeader:SetText(instanceName);
+	charDetails:SetText(charText);
+	acctDetails:SetText(acctText);
+	local ofsy = -30;
+	detailedHeader:SetPoint("TOP", 0, ofsy);
+	ofsy = ofsy - detailedHeader:GetStringHeight();
+	charDetails:SetPoint("TOPLEFT", 15, ofsy);
+	acctDetails:SetPoint("TOPRIGHT", -15, ofsy);
+end
+
 function eventHandler(self, event, ...)
 	local arg1, arg2 = ...
 	if event == "ADDON_LOADED" and arg1 == "InstanceProfits" then
@@ -590,6 +738,7 @@ function eventHandler(self, event, ...)
 		InstanceProfits_TableDisplay:Hide();
 		InstanceProfits_LiveDisplay:Hide();
 		InstanceProfits_FilterOptions:Hide();
+		InstanceProfits_DetailedDisplay:Hide()
 
 		characterHistory = _G["IP_InstanceRunsCharacterHistory"] or {};
 		globalHistory = _G["IP_InstanceRunsGlobalHistory"] or {};
@@ -621,6 +770,16 @@ function eventHandler(self, event, ...)
 		scrollbg:SetTexture(0, 0, 0, 0.4)
 		InstanceProfits_TableDisplay.scrollbar = scrollbar
 		IP_SortData("nameA")
+		StaticPopupDialogs["IP_Confirm_Delete"] = {
+			text = "Are you sure you want to delete all data for %s? This action cannot be undone.",
+			button1 = "Yes",
+			button2 = "No",
+			OnAccept = function() end,
+			timeout = 0,
+			whileDead = true,
+			hideOnEscape = true,
+			preferredIndex = 3
+		}						
 
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_ENTERING_WORLD" then
@@ -674,7 +833,7 @@ function eventHandler(self, event, ...)
 		lootableItems[name] = 0;
 
 		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney))
-	elseif event == "CHAT_MSG_MONEY" then
+	elseif event == "CHAT_MSG_MONEY" and isInPvEInstance then
 		local goldPattern = GOLD_AMOUNT:gsub('%%d', '(%%d*)')
 		local silverPattern = SILVER_AMOUNT:gsub('%%d', '(%%d*)')
 		local copperPattern = COPPER_AMOUNT:gsub('%%d', '(%%d*)')
@@ -700,8 +859,6 @@ function SlashCmdList.INSTANCEPROFITS(msg, editbox)
 		IP_ShowLiveTracker();
 	elseif msg == 'filter' then
 		IP_ShowFilters()
-	elseif msg == 'sort' then
-		IP_SortData("timeD")
 	else
 		InstanceProfits_TableDisplay:Show();
 		IP_DisplaySavedData();
