@@ -10,7 +10,7 @@
 		<Size>
 			<AbsDimension x="300" y="300" />
 		</Size>
-		<Backdrop 	bgFile="Interface\Tooltips\UI-Tooltip-Background"
+		<Backdrop 	bgFile="Interface\DialogFrame\UI-DialogBox-Background-Dark"
 					edgeFile="Interface\Tooltips\UI-Tooltip-Border"
 					tile="true">
 			<EdgeSize>
@@ -22,7 +22,7 @@
 			<BackgroundInsets>
 				<AbsInset left="4" right="3" top="4" bottom="3" />
 			</BackgroundInsets>
-			<Color r="0.2" g="0.2" b="0.2" a="0.7" />
+			<Color r="0" g="0" b="0" a="1" />
 		</Backdrop>
 		<Frames>
 			<Frame name="$parent_TitleBar" enableMouse="true">

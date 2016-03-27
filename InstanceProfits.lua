@@ -403,6 +403,7 @@ function saveInstanceData()
 	print("You earned " .. lootedString .. " from mobs");
 	print("and " .. copperToString(vendorMoney) .. " from looted items that you can vendor.");
 	print("Your gear will take " .. copperToString(endRepair - startRepair) .. " to be repaired. This makes your total profit " .. copperToString(lootedMoney + vendorMoney - (endRepair - startRepair)));
+	IP_SortData(sortDir);
 	IP_DisplaySavedData();
 end
 
@@ -420,11 +421,14 @@ function IP_ClearCharacterData()
 		end
 	end
 	characterHistory = {};
+	IP_SortData(sortDir);
 	IP_DisplaySavedData();
 end
 
 function IP_ShowFilters()
 	InstanceProfits_FilterOptions:Show();
+	InstanceProfits_FilterOptions:SetFrameStrata("HIGH")
+	InstanceProfits_FilterOptions:Raise()
 	table.foreach(FILTER_BUTTONS, 
 		function(k,v) 
 			if filteredDifficulties[k] == true then
