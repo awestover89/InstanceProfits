@@ -41,6 +41,19 @@
 					<OnClick> self:GetParent():Hide(); </OnClick>
 				</Scripts>
 			</Button>
+			<Button name="$parent_ButtonChangeTextColor" inherits="OptionsButtonTemplate" text="Text Color">
+				<Anchors>
+					<Anchor point="TOPRIGHT">
+						<Offset x="-12" y="-32"/>
+					</Anchor>
+			    </Anchors>
+				<Size>
+					<AbsDimension x="100" y="21" />
+				</Size>
+			    <Scripts>
+					<OnClick> IP_DetailsTextColor(); </OnClick>
+			    </Scripts>
+			</Button>
 		</Frames>
 		<Scripts>
 			<OnMouseDown>
@@ -52,6 +65,7 @@
 			</OnMouseDown>
 			<OnMouseUp>
 				self:StopMovingOrSizing();
+				IP_DetailsScroll();
 			</OnMouseUp>
 		</Scripts>
 	</Frame>

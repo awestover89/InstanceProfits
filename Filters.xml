@@ -8,10 +8,10 @@
 			</Anchor>
 		</Anchors>
 		<Size>
-			<AbsDimension x="300" y="300" />
+			<AbsDimension x="300" y="350" />
 		</Size>
 		<ResizeBounds>
-			<minResize x="200" y="90"/>
+			<minResize x="300" y="350"/>
 		</ResizeBounds>
 		<Backdrop 	bgFile="Interface\DialogFrame\UI-DialogBox-Background-Dark"
 					edgeFile="Interface\Tooltips\UI-Tooltip-Border"
@@ -230,6 +230,67 @@
 					</OnClick>
 				</Scripts>
 			</CheckButton>
+			<CheckButton name="$parentLFRFilter" inherits="OptionsCheckButtonTemplate" checked="true" text="Looking For Raid">
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="20" y="-240"></AbsDimension>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						IP_Checkbutton_OnLoad(self, 7)
+					</OnLoad>
+					<OnClick>
+						IP_Checkbutton_OnClick(self)
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="$parentMinTimeSeconds" inherits="UIRadioButtonTemplate" checked="true" text="Seconds">
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="20" y="-290"></AbsDimension>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						IP_MinTimeRadio_OnLoad(self, "Seconds")
+					</OnLoad>
+					<OnClick>
+						IP_MinTimeRadio_OnClick(self)
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="$parentMinTimeMinutes" inherits="UIRadioButtonTemplate" checked="false" text="Minutes">
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="20" y="-315"></AbsDimension>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						IP_MinTimeRadio_OnLoad(self, "Minutes")
+					</OnLoad>
+					<OnClick>
+						IP_MinTimeRadio_OnClick(self)
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<EditBox name="$parent_MinTimeValue" inherits="InputBoxTemplate" autoFocus="true" numeric="true">
+				<Size x="40" y="20"/>
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="230" y="-270" />
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</EditBox>
 		</Frames>
 		<Layers>
 			<Layer level="ARTWORK">
@@ -245,6 +306,23 @@
 						<Anchor point="TOPLEFT">
 							<Offset>
 								<AbsDimension x="20" y="-65" />
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<Color r="1" g=".8" b="0.2" a="1" />
+				</FontString>
+				<FontString name="$parent_MinTimeString"
+							inherits="SystemFont_Med3"
+							text="Only Save Runs Longer Than"
+							justifyV="TOP"
+							justifyH="RIGHT">
+					<Size>
+						<AbsDimension x="0" y="15" />
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset>
+								<AbsDimension x="20" y="-275" />
 							</Offset>
 						</Anchor>
 					</Anchors>

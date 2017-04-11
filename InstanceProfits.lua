@@ -16,18 +16,23 @@ local LOOT_ITEM_PATTERN = strgsub(LOOT_ITEM_SELF, "%%s", "(.+)")
 local LOOT_ITEM_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
 local LOOT_ITEM_PUSHED_PATTERN = strgsub(LOOT_ITEM_PUSHED_SELF, "%%s", "(.+)")
 local LOOT_ITEM_PUSHED_MULTIPLE_PATTERN = strgsub(strgsub(LOOT_ITEM_PUSHED_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
+local LOOT_ITEM_BONUS = strgsub(LOOT_ITEM_BONUS_ROLL_SELF, "%%s", "(.+)");
+local LOOT_ITEM_MULTIPLE_BONUS = strgsub(strgsub(LOOT_ITEM_BONUS_ROLL_SELF_MULTIPLE, "%%s", "(.+)"), "%%d", "(%%d+)")
 local FILTER_BUTTONS = {}
-local filteredDifficulties, tempFilters, globalSortedInstances, characterSortedInstances = {}, {}, {}, {}
+local filteredDifficulties, tempFilters, globalSortedInstances, characterSortedInstances, textColors = {}, {}, {}, {}, {}
 local sortDir, tempSortDir = "nameA", "nameA"
+local minTime = 30
+local minTimeUnit = "Seconds"
 local scrollframe, scrollbar = {}, {}
+local pageValues = {}
 
 ---------
 -- old --
 ---------
 
 local enteredAlive = true
-instanceName, instanceDifficulty, instanceDifficultyName, startTime, startRepair = nil, nil, nil, 0, 0;
-characterHistory, globalHistory, contentButtons, detailButtons = {}, {}, {}, {};
+instanceName, instanceDifficulty, instanceDifficultyName, startTime, startRepair, recentLimit = nil, nil, nil, 0, 0, 5;
+characterHistory, globalHistory, contentButtons, detailButtons, recentHistory = {}, {}, {}, {}, {};
 content, detailedContent = nil, nil;
 contentButtonFrame, detailButtonFrame = nil, nil;
 displayGlobal = false;
@@ -37,9 +42,10 @@ liveTime = nil;
 liveLoot = nil;
 liveVendor = nil;
 detailedHeader, charDetails, acctDetails = nil, nil, nil;
+prevPage, nextPage = nil, nil;
 local lootableItems = {};
 local elapsedTime, lootedMoney, vendorMoney = 0, 0, 0;
-local version = "0.5.1";
+local version = "0.6.4";
 local repairTooltip = nil;
 
 local frame = CreateFrame("FRAME", "InstanceProfitsFrame");
@@ -218,7 +224,17 @@ function IP_DeleteInstanceData(instance, difficulty)
 	end
 end
 
-function IP_DisplaySavedData()
+function IP_DisplaySavedData(page)
+	scrollbar[1]:SetValue(0)
+	pageValues[page] = {}
+	if page == 1 then
+		pageValues[page]["r"] = 0
+		pageValues[page]["p"] = 0
+		pageValues[page]["t"] = 0
+		pageValues[page]["index"] = 0
+	else
+		pageValues[page] = pageValues[page-1]
+	end
 	content = content or CreateFrame("Frame", nil, scrollframe[1]);
 	contentButtonFrame = contentButtonFrame or CreateFrame("Frame", nil, content);
 	contentButtonFrame:SetAllPoints(true);
@@ -232,62 +248,73 @@ function IP_DisplaySavedData()
 	content.text:SetAllPoints(true)
 	content.text:SetJustifyH("LEFT")
 	content.text:SetJustifyV("TOP")
-	content.text:SetTextColor(0,.8,1,1)
+	content.text:SetTextColor(textColors['main']['r'], textColors['main']['g'], textColors['main']['b'], textColors['main']['a'])
+	prevPage = prevPage or CreateFrame("Button", nil, InstanceProfits_TableDisplay, "UIPanelButtonTemplate");
+	nextPage = nextPage or CreateFrame("Button", nil, InstanceProfits_TableDisplay, "UIPanelButtonTemplate");
 	local dataString = "\n";
 	local i, j = 0, 0;
-	local r, p, t = 0, 0, 0;
+	local showNext = false;
+	local count = 0;
 	if displayGlobal then
 		local offy = 8
 		for index, instance in pairs(globalSortedInstances) do
-			data = globalHistory[instance]
-			local firstPrint = true;
-			for difficulty, values in pairs(data) do
-				if filteredDifficulties[difficulty] == true then
-					if firstPrint then									
-						dataString = dataString .. instance .. "\n";
-						j = j + 1;
-						detailButtons[j] = detailButtons[j] or CreateFrame("Button", nil, detailButtonFrame, "UIPanelButtonTemplate");
-						------------------------
-						-- ElvUI Skin Support --
-						------------------------
-						if (IsAddOnLoaded("ElvUI") or IsAddOnLoaded("Tukui")) then
-						  local c;
-						  if ElvUI then
-							local E, L, V, P, G, DF = unpack(ElvUI);
-							c = E;
-						  else
-							local T, C, L, G = unpack(Tukui);
-							c = T;
-							c.TexCoords = {.08, .92, .08, .92};
-						  end
-						  local S = c:GetModule('Skins');
-						  S:HandleButton(detailButtons[j]);
+			if index >= pageValues[page]["index"] then
+				if count > 25 then
+					showNext = true
+					pageValues[page]["index"] = index;
+					break
+				end
+				data = globalHistory[instance]
+				local firstPrint = true;
+				for difficulty, values in pairs(data) do
+					if filteredDifficulties[difficulty] == true then
+						if firstPrint then	
+							count = count + 1;
+							dataString = dataString .. instance .. "\n";
+							j = j + 1;
+							detailButtons[j] = detailButtons[j] or CreateFrame("Button", nil, detailButtonFrame, "UIPanelButtonTemplate");
+							------------------------
+							-- ElvUI Skin Support --
+							------------------------
+							if (IsAddOnLoaded("ElvUI") or IsAddOnLoaded("Tukui")) then
+							  local c;
+							  if ElvUI then
+								local E, L, V, P, G, DF = unpack(ElvUI);
+								c = E;
+							  else
+								local T, C, L, G = unpack(Tukui);
+								c = T;
+								c.TexCoords = {.08, .92, .08, .92};
+							  end
+							  local S = c:GetModule('Skins');
+							  S:HandleButton(detailButtons[j]);
+							end
+							detailButtons[j]:SetPoint("TOPRIGHT", 0, offy * -1);
+							detailButtons[j]:SetText("Details");
+							detailButtons[j]:SetSize(60, 20);
+							detailButtons[j]:SetNormalFontObject("GameFontNormal");
+							detailButtons[j]:SetScript("OnClick", function(self, button, down)
+								IP_ShowDetails(instance);
+							end);
+							detailButtons[j].tooltip_text = "View enhanced details of saved data for " .. instance;
+							detailButtons[j]:SetScript("OnEnter", IP_TippedButtonOnEnter)
+							detailButtons[j]:SetScript("OnLeave", IP_TippedButtonOnLeave)
+							detailButtons[j]:Show();
+							firstPrint = false;
 						end
-						detailButtons[j]:SetPoint("TOPRIGHT", 0, offy * -1);
-						detailButtons[j]:SetText("Details");
-						detailButtons[j]:SetSize(60, 20);
-						detailButtons[j]:SetNormalFontObject("GameFontNormal");
-						detailButtons[j]:SetScript("OnClick", function(self, button, down)
-							IP_ShowDetails(instance);
-						end);
-						detailButtons[j].tooltip_text = "View enhanced details of saved data for " .. instance;
-						detailButtons[j]:SetScript("OnEnter", IP_TippedButtonOnEnter)
-						detailButtons[j]:SetScript("OnLeave", IP_TippedButtonOnLeave)
-						detailButtons[j]:Show();
-						firstPrint = false;
-					end
-					dataString = dataString .. "    (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n";
-					r = r + values['count']
-					p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
-					t = t + values['totalTime']
+						dataString = dataString .. "    (" .. difficulty .. ") | " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n";
+						pageValues[page]["r"] = pageValues[page]["r"] + values['count']
+						pageValues[page]["p"] = pageValues[page]["p"] + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
+						pageValues[page]["t"] = pageValues[page]["t"] + values['totalTime']
+						content.text:SetText(dataString)
+						offy = content.text:GetStringHeight() - 14;
+					end			
+				end
+				if not firstPrint then
+					dataString = dataString .. "\n";
 					content.text:SetText(dataString)
 					offy = content.text:GetStringHeight() - 14;
 				end
-			end
-			if not firstPrint then
-				dataString = dataString .. "\n";
-				content.text:SetText(dataString)
-				offy = content.text:GetStringHeight() - 14;
 			end
 		end
 		contentButtonFrame:Hide();
@@ -297,72 +324,80 @@ function IP_DisplaySavedData()
 		detailButtonFrame:Show();
 		local offy = 8;
 		for index, instance in pairs(characterSortedInstances) do
-			data = characterHistory[instance]
-			local firstPrint = true;
-			for difficulty, values in pairs(data) do
-				if filteredDifficulties[difficulty] == true then
-					if firstPrint then
-						dataString = dataString .. "       " .. instance .. "\n";
-						j = j + 1;
-						detailButtons[j] = detailButtons[j] or CreateFrame("Button", nil, detailButtonFrame, "UIPanelButtonTemplate");
-						------------------------
-						-- ElvUI Skin Support --
-						------------------------
-						if (IsAddOnLoaded("ElvUI") or IsAddOnLoaded("Tukui")) then
-						  local c;
-						  if ElvUI then
-							local E, L, V, P, G, DF = unpack(ElvUI);
-							c = E;
-						  else
-							local T, C, L, G = unpack(Tukui);
-							c = T;
-							c.TexCoords = {.08, .92, .08, .92};
-						  end
-						  local S = c:GetModule('Skins');
-						  S:HandleButton(detailButtons[j]);
+			if index >= pageValues[page]["index"] then
+				if count > 25 then
+					showNext = true
+					pageValues[page]["index"] = index;
+					break
+				end
+				data = characterHistory[instance]
+				local firstPrint = true;
+				for difficulty, values in pairs(data) do
+					if filteredDifficulties[difficulty] == true then
+						if firstPrint then
+							count = count + 1;
+							dataString = dataString .. "       " .. instance .. "\n";
+							j = j + 1;
+							detailButtons[j] = detailButtons[j] or CreateFrame("Button", nil, detailButtonFrame, "UIPanelButtonTemplate");
+							------------------------
+							-- ElvUI Skin Support --
+							------------------------
+							if (IsAddOnLoaded("ElvUI") or IsAddOnLoaded("Tukui")) then
+							  local c;
+							  if ElvUI then
+								local E, L, V, P, G, DF = unpack(ElvUI);
+								c = E;
+							  else
+								local T, C, L, G = unpack(Tukui);
+								c = T;
+								c.TexCoords = {.08, .92, .08, .92};
+							  end
+							  local S = c:GetModule('Skins');
+							  S:HandleButton(detailButtons[j]);
+							end
+							detailButtons[j]:SetPoint("TOPRIGHT", 0, offy * -1);
+							detailButtons[j]:SetText("Details");
+							detailButtons[j]:SetSize(60, 20);
+							detailButtons[j]:SetNormalFontObject("GameFontNormal");
+							detailButtons[j]:SetScript("OnClick", function(self, button, down)
+								IP_ShowDetails(instance);
+							end);
+							detailButtons[j].tooltip_text = "View enhanced details of saved data for " .. instance;
+							detailButtons[j]:SetScript("OnEnter", IP_TippedButtonOnEnter)
+							detailButtons[j]:SetScript("OnLeave", IP_TippedButtonOnLeave)
+							detailButtons[j]:Show();
+							firstPrint = false;
 						end
-						detailButtons[j]:SetPoint("TOPRIGHT", 0, offy * -1);
-						detailButtons[j]:SetText("Details");
-						detailButtons[j]:SetSize(60, 20);
-						detailButtons[j]:SetNormalFontObject("GameFontNormal");
-						detailButtons[j]:SetScript("OnClick", function(self, button, down)
-							IP_ShowDetails(instance);
+						i = i + 1;
+						contentButtons[i] = contentButtons[i] or CreateFrame("Button", nil, contentButtonFrame, "UIPanelButtonTemplate");
+						contentButtons[i]:SetPoint("TOPLEFT", 0, offy * -1);---28 * i + 16 + i * 4);
+						contentButtons[i]:SetText("X");
+						contentButtons[i]:SetSize(16, 16);
+						contentButtons[i]:SetNormalFontObject("GameFontNormal");
+						contentButtons[i]:SetScript("OnClick", function(self, button, down)
+							StaticPopupDialogs["IP_Confirm_Delete"].OnAccept = function() 
+								IP_DeleteInstanceData(instance, difficulty);
+								IP_DisplaySavedData(1);
+							end
+							StaticPopup_Show("IP_Confirm_Delete", instance .. " (" .. difficulty .. ")");
 						end);
-						detailButtons[j].tooltip_text = "View enhanced details of saved data for " .. instance;
-						detailButtons[j]:SetScript("OnEnter", IP_TippedButtonOnEnter)
-						detailButtons[j]:SetScript("OnLeave", IP_TippedButtonOnLeave)
-						detailButtons[j]:Show();
-						firstPrint = false;
+						contentButtons[i].tooltip_text = "Delete saved data for " .. instance .. " (" .. difficulty .. ") for " .. GetUnitName("player");
+						contentButtons[i]:SetScript("OnEnter", IP_TippedButtonOnEnter)
+						contentButtons[i]:SetScript("OnLeave", IP_TippedButtonOnLeave)
+						contentButtons[i]:Show();
+						dataString = dataString .. "              (" .. difficulty .. ") " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n";
+						pageValues[page]["r"] = pageValues[page]["r"] + values['count']
+						pageValues[page]["p"] = pageValues[page]["p"] + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
+						pageValues[page]["t"] = pageValues[page]["t"] + values['totalTime']
+						content.text:SetText(dataString)
+						offy = content.text:GetStringHeight() - 14;
 					end
-					i = i + 1;
-					contentButtons[i] = contentButtons[i] or CreateFrame("Button", nil, contentButtonFrame, "UIPanelButtonTemplate");
-					contentButtons[i]:SetPoint("TOPLEFT", 0, offy * -1);---28 * i + 16 + i * 4);
-					contentButtons[i]:SetText("X");
-					contentButtons[i]:SetSize(16, 16);
-					contentButtons[i]:SetNormalFontObject("GameFontNormal");
-					contentButtons[i]:SetScript("OnClick", function(self, button, down)
-						StaticPopupDialogs["IP_Confirm_Delete"].OnAccept = function() 
-							IP_DeleteInstanceData(instance, difficulty);
-							IP_DisplaySavedData();
-						end
-						StaticPopup_Show("IP_Confirm_Delete", instance .. " (" .. difficulty .. ")");
-					end);
-					contentButtons[i].tooltip_text = "Delete saved data for " .. instance .. " (" .. difficulty .. ") for " .. GetUnitName("player");
-					contentButtons[i]:SetScript("OnEnter", IP_TippedButtonOnEnter)
-					contentButtons[i]:SetScript("OnLeave", IP_TippedButtonOnLeave)
-					contentButtons[i]:Show();
-					dataString = dataString .. "              (" .. difficulty .. ") " .. values['count'] .. " | " .. GetMoneyString(values['totalLoot'] + values['totalVendor'] - values['totalRepair']) .. " | " .. timeToSmallString(values['totalTime']) .. "\n";
-					r = r + values['count']
-					p = p + values['totalLoot'] + values['totalVendor'] - values['totalRepair']
-					t = t + values['totalTime']
+				end
+				if not firstPrint then
+					dataString = dataString .. "\n";
 					content.text:SetText(dataString)
 					offy = content.text:GetStringHeight() - 14;
 				end
-			end
-			if not firstPrint then
-				dataString = dataString .. "\n";
-				content.text:SetText(dataString)
-				offy = content.text:GetStringHeight() - 14;
 			end
 		end
 		for k=i+1, table.getn(contentButtons) do
@@ -373,13 +408,43 @@ function IP_DisplaySavedData()
 	for l=j+1, table.getn(detailButtons) do
 		-- We deleted some instance data, so we have some extra buttons
 		detailButtons[l]:Hide();
+	end	
+	scrollframe[1]:SetPoint("BOTTOMRIGHT", -10, 45)
+	if showNext then
+		scrollframe[1]:SetPoint("BOTTOMRIGHT", -10, 75)
+		nextPage:SetText("Next Page");
+		nextPage:SetPoint("BOTTOMRIGHT", -30, 40);
+		nextPage:SetSize(100, 25)
+		nextPage:SetScript("OnClick", function(self, button, down)
+			IP_DisplaySavedData(page + 1)
+		end);
+		nextPage:Show()
+	else
+		dataString = dataString .. "Totals: \n           Runs: " .. pageValues[page]["r"] .. "\n           Profit: " .. GetMoneyString(pageValues[page]["p"]) .. "\n           Time: " .. timeToSmallString(pageValues[page]["t"]) .. "\n\n"
+		nextPage:Hide()
 	end
-	dataString = dataString .. "Totals: \n           Runs: " .. r .. "\n           Profit: " .. GetMoneyString(p) .. "\n           Time: " .. timeToSmallString(t) .. "\n\n"
+	if page > 1 then
+		scrollframe[1]:SetPoint("BOTTOMRIGHT", -10, 75)
+		prevPage:SetText("Previous Page");
+		prevPage:SetPoint("BOTTOMLEFT", 30, 40);
+		prevPage:SetSize(100, 25)
+		prevPage:SetScript("OnClick", function(self, button, down)
+			IP_DisplaySavedData(page - 1)
+		end);
+		prevPage:Show()
+	else
+		prevPage:Hide()
+	end
 	content.text:SetText(dataString)
+	IP_MainScroll()
+end
+
+function IP_MainScroll()
 	local scrollMax = content.text:GetStringHeight();
-	if scrollMax > 613 then
+	local height = InstanceProfits_TableDisplay:GetHeight() - 140;
+	if scrollMax > (height) then
 		scrollbar[1]:Show();
-		scrollMax = scrollMax - 612;
+		scrollMax = scrollMax - height;
 	else
 		scrollbar[1]:Hide();
 		scrollMax = 1;
@@ -405,7 +470,7 @@ function IP_ToggleDisplayGlobal()
 	else
 		InstanceProfits_TableDisplay_ButtonToggleData:SetText("Show Account Data");
 	end
-	IP_DisplaySavedData();
+	IP_DisplaySavedData(1);
 end
 
 function IP_UpdateTime(self, elapsed)
@@ -433,59 +498,88 @@ end
 
 function saveInstanceData()
 	local totalTime = difftime(time(), startTime);
-	local endRepair = IP_CalculateRepairCost();
-	characterHistory[instanceName][instanceDifficultyName]['totalTime'] = characterHistory[instanceName][instanceDifficultyName]['totalTime'] + totalTime;
-	characterHistory[instanceName][instanceDifficultyName]['totalRepair'] = characterHistory[instanceName][instanceDifficultyName]['totalRepair'] + (endRepair - startRepair);
-	characterHistory[instanceName][instanceDifficultyName]['totalLoot'] = characterHistory[instanceName][instanceDifficultyName]['totalLoot'] + lootedMoney;
-	characterHistory[instanceName][instanceDifficultyName]['totalVendor'] = characterHistory[instanceName][instanceDifficultyName]['totalVendor'] + vendorMoney;
-	globalHistory[instanceName][instanceDifficultyName]['totalTime'] = globalHistory[instanceName][instanceDifficultyName]['totalTime'] + totalTime;
-	globalHistory[instanceName][instanceDifficultyName]['totalRepair'] = globalHistory[instanceName][instanceDifficultyName]['totalRepair'] + (endRepair - startRepair);
-	globalHistory[instanceName][instanceDifficultyName]['totalLoot'] = globalHistory[instanceName][instanceDifficultyName]['totalLoot'] + lootedMoney;
-	globalHistory[instanceName][instanceDifficultyName]['totalVendor'] = globalHistory[instanceName][instanceDifficultyName]['totalVendor'] + vendorMoney;
-	if (characterHistory[instanceName][instanceDifficultyName]['fastestRun'] == nil or characterHistory[instanceName][instanceDifficultyName]['fastestRun'] > totalTime) then
-		characterHistory[instanceName][instanceDifficultyName]['fastestRun'] = totalTime
+	local minTimeSeconds = 0
+	if minTimeUnit == "Minutes" then
+		minTimeSeconds = minTime*60
+	else
+		minTimeSeconds = minTime
 	end
-	if (characterHistory[instanceName][instanceDifficultyName]['mostLoot'] == nil or characterHistory[instanceName][instanceDifficultyName]['mostLoot'] < lootedMoney) then
-		characterHistory[instanceName][instanceDifficultyName]['mostLoot'] = lootedMoney
+	if totalTime >= minTimeSeconds then
+		local endRepair = IP_CalculateRepairCost();
+		characterHistory[instanceName][instanceDifficultyName]['totalTime'] = characterHistory[instanceName][instanceDifficultyName]['totalTime'] + totalTime;
+		characterHistory[instanceName][instanceDifficultyName]['totalRepair'] = characterHistory[instanceName][instanceDifficultyName]['totalRepair'] + (endRepair - startRepair);
+		characterHistory[instanceName][instanceDifficultyName]['totalLoot'] = characterHistory[instanceName][instanceDifficultyName]['totalLoot'] + lootedMoney;
+		characterHistory[instanceName][instanceDifficultyName]['totalVendor'] = characterHistory[instanceName][instanceDifficultyName]['totalVendor'] + vendorMoney;
+		globalHistory[instanceName][instanceDifficultyName]['totalTime'] = globalHistory[instanceName][instanceDifficultyName]['totalTime'] + totalTime;
+		globalHistory[instanceName][instanceDifficultyName]['totalRepair'] = globalHistory[instanceName][instanceDifficultyName]['totalRepair'] + (endRepair - startRepair);
+		globalHistory[instanceName][instanceDifficultyName]['totalLoot'] = globalHistory[instanceName][instanceDifficultyName]['totalLoot'] + lootedMoney;
+		globalHistory[instanceName][instanceDifficultyName]['totalVendor'] = globalHistory[instanceName][instanceDifficultyName]['totalVendor'] + vendorMoney;
+		if (characterHistory[instanceName][instanceDifficultyName]['fastestRun'] == nil or characterHistory[instanceName][instanceDifficultyName]['fastestRun'] > totalTime) then
+			characterHistory[instanceName][instanceDifficultyName]['fastestRun'] = totalTime
+		end
+		if (characterHistory[instanceName][instanceDifficultyName]['mostLoot'] == nil or characterHistory[instanceName][instanceDifficultyName]['mostLoot'] < lootedMoney) then
+			characterHistory[instanceName][instanceDifficultyName]['mostLoot'] = lootedMoney
+		end
+		if (characterHistory[instanceName][instanceDifficultyName]['mostVendor'] == nil or characterHistory[instanceName][instanceDifficultyName]['mostVendor'] < vendorMoney) then
+			characterHistory[instanceName][instanceDifficultyName]['mostVendor'] = vendorMoney
+		end
+		if (globalHistory[instanceName][instanceDifficultyName]['fastestRun'] == nil or globalHistory[instanceName][instanceDifficultyName]['fastestRun'] > totalTime) then
+			globalHistory[instanceName][instanceDifficultyName]['fastestRun'] = totalTime
+		end
+		if (globalHistory[instanceName][instanceDifficultyName]['mostLoot'] == nil or globalHistory[instanceName][instanceDifficultyName]['mostLoot'] < lootedMoney) then
+			globalHistory[instanceName][instanceDifficultyName]['mostLoot'] = lootedMoney
+		end
+		if (globalHistory[instanceName][instanceDifficultyName]['mostVendor'] == nil or globalHistory[instanceName][instanceDifficultyName]['mostVendor'] < vendorMoney) then
+			globalHistory[instanceName][instanceDifficultyName]['mostVendor'] = vendorMoney
+		end
+		local timeString = math.floor(totalTime/60) .. " minutes and " .. (totalTime % 60) .. " seconds";
+		local lootedString = copperToString(lootedMoney);
+		local repairString = copperToString(endRepair - startRepair);
+		local vendorString = copperToString(vendorMoney);
+		local profitString = copperToString(lootedMoney + vendorMoney - (endRepair - startRepair));
+		local recentString = "Date: " .. date("%m/%d/%y %H:%M:%S") .. " \nCharacter: " .. GetUnitName("player") .. "\nInstance: " .. instanceName .. " (" .. instanceDifficultyName .. ") \nTime: " .. timeString .. "\nLoot: " .. lootedString .. "\nVendor: " .. vendorString .. "\nRepair: " .. repairString .. "\nProfit: " .. profitString;
+		table.insert(recentHistory, recentString);
+		if (table.getn(recentHistory) > 10) then
+			table.remove(recentHistory, 1);
+		end
+		print("You have exited your instance after spending " .. timeString .. " inside.");
+		print("You earned " .. lootedString .. " from mobs");
+		print("and " .. vendorString .. " from looted items that you can vendor.");
+		print("Your gear will take " .. repairString .. " to be repaired. This makes your total profit " .. profitString);
+		IP_SortData(sortDir);
+		IP_DisplaySavedData(1);
+	else
+		print("This run was shorter than the minimum of " .. minTime .. " " .. minTimeUnit .. " and was not saved.")
 	end
-	if (characterHistory[instanceName][instanceDifficultyName]['mostVendor'] == nil or characterHistory[instanceName][instanceDifficultyName]['mostVendor'] < vendorMoney) then
-		characterHistory[instanceName][instanceDifficultyName]['mostVendor'] = vendorMoney
-	end
-	if (globalHistory[instanceName][instanceDifficultyName]['fastestRun'] == nil or globalHistory[instanceName][instanceDifficultyName]['fastestRun'] > totalTime) then
-		globalHistory[instanceName][instanceDifficultyName]['fastestRun'] = totalTime
-	end
-	if (globalHistory[instanceName][instanceDifficultyName]['mostLoot'] == nil or globalHistory[instanceName][instanceDifficultyName]['mostLoot'] < lootedMoney) then
-		globalHistory[instanceName][instanceDifficultyName]['mostLoot'] = lootedMoney
-	end
-	if (globalHistory[instanceName][instanceDifficultyName]['mostVendor'] == nil or globalHistory[instanceName][instanceDifficultyName]['mostVendor'] < vendorMoney) then
-		globalHistory[instanceName][instanceDifficultyName]['mostVendor'] = vendorMoney
-	end
-	local timeString = math.floor(totalTime/60) .. " minutes and " .. (totalTime % 60) .. " seconds";
-	local lootedString = copperToString(lootedMoney);
-	print("You have exited your instance after spending " .. timeString .. " inside.");
-	print("You earned " .. lootedString .. " from mobs");
-	print("and " .. copperToString(vendorMoney) .. " from looted items that you can vendor.");
-	print("Your gear will take " .. copperToString(endRepair - startRepair) .. " to be repaired. This makes your total profit " .. copperToString(lootedMoney + vendorMoney - (endRepair - startRepair)));
-	IP_SortData(sortDir);
-	IP_DisplaySavedData();
 end
 
 function IP_ClearCharacterData()
-	for instance, data in pairs(characterHistory) do
-		for difficulty, values in pairs(data) do
-			globalHistory[instance][difficulty]['totalTime'] = globalHistory[instance][difficulty]['totalTime'] - values['totalTime'];
-			globalHistory[instance][difficulty]['totalRepair'] = globalHistory[instance][difficulty]['totalRepair'] - values['totalRepair'];
-			globalHistory[instance][difficulty]['totalLoot'] = globalHistory[instance][difficulty]['totalLoot'] - values['totalLoot'];
-			globalHistory[instance][difficulty]['totalVendor'] = globalHistory[instance][difficulty]['totalVendor'] - values['totalVendor'];
-			globalHistory[instance][difficulty]['count'] = globalHistory[instance][difficulty]['count'] - values['count'];
-			if (globalHistory[instance][difficulty]["count"] == 0) then
-				globalHistory[instance][difficulty] = nil;
+	StaticPopupDialogs["IP_Confirm_Delete_Character"].OnAccept = function() 
+		for instance, data in pairs(characterHistory) do
+			for difficulty, values in pairs(data) do
+				globalHistory[instance][difficulty]['totalTime'] = globalHistory[instance][difficulty]['totalTime'] - values['totalTime'];
+				globalHistory[instance][difficulty]['totalRepair'] = globalHistory[instance][difficulty]['totalRepair'] - values['totalRepair'];
+				globalHistory[instance][difficulty]['totalLoot'] = globalHistory[instance][difficulty]['totalLoot'] - values['totalLoot'];
+				globalHistory[instance][difficulty]['totalVendor'] = globalHistory[instance][difficulty]['totalVendor'] - values['totalVendor'];
+				globalHistory[instance][difficulty]['count'] = globalHistory[instance][difficulty]['count'] - values['count'];
+				if (globalHistory[instance][difficulty]["count"] == 0) then
+					globalHistory[instance][difficulty] = nil;
+				end
 			end
 		end
+		characterHistory = {};
+		IP_SortData(sortDir);
+		IP_DisplaySavedData(1);
 	end
-	characterHistory = {};
-	IP_SortData(sortDir);
-	IP_DisplaySavedData();
+	StaticPopup_Show("IP_Confirm_Delete_Character");
+end
+
+function IP_ClearRecentData()
+	StaticPopupDialogs["IP_Confirm_Delete_Recent"].OnAccept = function() 
+		recentHistory = {};
+		IP_ShowRecent();
+	end
+	StaticPopup_Show("IP_Confirm_Delete_Recent");
 end
 
 function IP_ShowFilters()
@@ -501,6 +595,51 @@ function IP_ShowFilters()
 			end
 		end
 	)
+	if minTimeUnit == "Minutes" then
+		_G["InstanceProfits_FilterOptionsMinTimeMinutes"]:SetChecked(true)
+		_G["InstanceProfits_FilterOptionsMinTimeSeconds"]:SetChecked(false)
+	else
+		_G["InstanceProfits_FilterOptionsMinTimeMinutes"]:SetChecked(false)
+		_G["InstanceProfits_FilterOptionsMinTimeSeconds"]:SetChecked(true)
+	end
+	_G["InstanceProfits_FilterOptions_MinTimeValue"]:SetNumber(minTime)
+end
+
+function IP_ShowRecent()
+	InstanceProfits_RecentHistory:Show();
+	InstanceProfits_RecentHistory:SetFrameStrata("HIGH");
+	InstanceProfits_RecentHistory:Raise();
+	--UIDropDownMenu_SetSelectedID(InstanceProfits_RecentHistory_LimitDropDown, recentLimit);
+	historyContent = historyContent or CreateFrame("Frame", nil, scrollframe[3]);
+	historyContent:SetHeight(10000);
+	historyContent:SetWidth(550);
+	historyDetails = historyDetails or historyContent:CreateFontString(nil, "ARTWORK","NumberFontNormal");
+	historyDetails:SetTextColor(textColors['recent']['r'], textColors['recent']['g'], textColors['recent']['b'], textColors['recent']['a'])
+	local historyText = "";
+	local count = 0;
+	for i = table.getn(recentHistory), 1, -1 do
+		if (count < recentLimit) then
+			historyText = historyText .. "\n\n" .. recentHistory[i];
+			count = count + 1;
+		end
+	end
+	historyDetails:SetText(historyText);
+	historyDetails:SetPoint("TOPLEFT", 15, 0);
+	IP_RecentHistoryScroll();
+end
+
+function IP_RecentHistoryScroll()
+	local scrollMax = historyDetails:GetStringHeight();
+	local height = InstanceProfits_RecentHistory:GetHeight() - 110;
+	if scrollMax > (height) then
+		scrollbar[3]:Show();
+		scrollMax = scrollMax - height;
+	else
+		scrollbar[3]:Hide();
+		scrollMax = 1;
+	end
+	scrollbar[3]:SetMinMaxValues(1, scrollMax)
+	scrollframe[3]:SetScrollChild(historyContent)
 end
 
 function IP_Checkbutton_OnLoad(checkbutton, difficultyNum)
@@ -520,6 +659,23 @@ function IP_Checkbutton_OnClick(checkbutton)
 	end
 end
 
+function IP_MinTimeRadio_OnLoad(radiobutton, name)
+	_G[radiobutton:GetName() .. "Text"]:SetText(name)
+end
+
+function IP_MinTimeRadio_OnClick(radiobutton)
+	local name = _G[radiobutton:GetName() .. "Text"]:GetText();
+	if radiobutton:GetChecked() == true then
+		if name == "Seconds" then
+			_G["InstanceProfits_FilterOptionsMinTimeMinutes"]:SetChecked(false)
+		else
+			_G["InstanceProfits_FilterOptionsMinTimeSeconds"]:SetChecked(false)
+		end
+	else
+		radiobutton:SetChecked(true)
+	end
+end
+
 function IP_FilterApply()
 	table.foreach(tempFilters, 
 		function(k,v) 
@@ -527,10 +683,16 @@ function IP_FilterApply()
 		end
 	)
 	sortDir = tempSortDir;
+	minTime = _G["InstanceProfits_FilterOptions_MinTimeValue"]:GetNumber()
+	if _G["InstanceProfits_FilterOptionsMinTimeMinutes"]:GetChecked() == true then
+		minTimeUnit = "Minutes"
+	elseif _G["InstanceProfits_FilterOptionsMinTimeSeconds"]:GetChecked() == true then
+		minTimeUnit = "Seconds"
+	end
 	InstanceProfits_FilterOptions:Hide();
 	InstanceProfits_TableDisplay:Show();
 	IP_SortData(sortDir)
-	IP_DisplaySavedData();
+	IP_DisplaySavedData(1);
 end
 
 function IP_FilterCancel()
@@ -541,7 +703,7 @@ function IP_FilterCancel()
 	)
 	if tempSortDir ~= sortDir then
 		tempSortDir = sortDir;
-		UIDropDownMenu_SetSelectedValue(UIDROPDOWNMENU_OPEN_MENU, sortDir);
+		UIDropDownMenu_SetSelectedValue(InstanceProfits_FilterOptions_SortDropDown, sortDir);
 	end
 	InstanceProfits_FilterOptions:Hide();
 end
@@ -701,10 +863,56 @@ function IP_BuildSortDropdown()
 	UIDropDownMenu_AddButton(info)
 end
 
+function IP_BuildLimitDropdown()
+	local info = UIDropDownMenu_CreateInfo();
+	info.text = "1";
+	info.value = 1;
+	info.func = IP_LimitSelect;
+	UIDropDownMenu_AddButton(info);
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "2";
+	info.value = 2;
+	info.func = IP_LimitSelect;
+	UIDropDownMenu_AddButton(info);
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "3";
+	info.value = 3;
+	info.func = IP_LimitSelect;
+	UIDropDownMenu_AddButton(info);
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "4";
+	info.value = 4;
+	info.func = IP_LimitSelect;
+	UIDropDownMenu_AddButton(info);
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "5";
+	info.value = 5;
+	info.func = IP_LimitSelect;
+	UIDropDownMenu_AddButton(info);
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "6";
+	info.value = 6;
+	info.func = IP_LimitSelect;
+	UIDropDownMenu_AddButton(info);
+	info = UIDropDownMenu_CreateInfo();
+	info.text = "7";
+	info.value = 7;
+	info.func = IP_LimitSelect;
+	UIDropDownMenu_AddButton(info);
+end
+
 function IP_SortSelect(self, arg1, arg2, checked)
 	if not checked then
-		UIDropDownMenu_SetSelectedValue(UIDROPDOWNMENU_OPEN_MENU, self.value);
+		UIDropDownMenu_SetSelectedValue(InstanceProfits_FilterOptions_SortDropDown, self.value);
 		tempSortDir = self.value;
+	end
+end
+
+function IP_LimitSelect(self, arg1, arg2, checked)
+	if not checked then
+		UIDropDownMenu_SetSelectedValue(InstanceProfits_RecentHistory_LimitDropDown, self.value);
+		recentLimit = self.value;
+		IP_ShowRecent();
 	end
 end
 
@@ -732,6 +940,9 @@ function IP_ShowDetails(instanceName)
 	detailedHeader = detailedHeader or InstanceProfits_DetailedDisplay:CreateFontString(nil, "ARTWORK","SystemFont_Huge2");
 	charDetails = charDetails or detailedContent:CreateFontString(nil, "ARTWORK","NumberFontNormal");
 	acctDetails = acctDetails or detailedContent:CreateFontString(nil, "ARTWORK","NumberFontNormal");
+	detailedHeader:SetTextColor(textColors['details']['r'], textColors['details']['g'], textColors['details']['b'], textColors['details']['a'])
+	charDetails:SetTextColor(textColors['details']['r'], textColors['details']['g'], textColors['details']['b'], textColors['details']['a'])
+	acctDetails:SetTextColor(textColors['details']['r'], textColors['details']['g'], textColors['details']['b'], textColors['details']['a'])
 	local charText = GetUnitName("player") .. "\n";
 	local acctText = "Account\n";
 	local runs, vendor, loot, repair, seconds, difficulties = 0, 0, 0, 0, 0, 0
@@ -798,10 +1009,15 @@ function IP_ShowDetails(instanceName)
 	ofsy = ofsy - detailedHeader:GetStringHeight();
 	charDetails:SetPoint("TOPLEFT", 15, 0);
 	acctDetails:SetPoint("TOPRIGHT", -15, 0);
-	local scrollMax = acctDetails:GetStringHeight();
-	if scrollMax > 353 then
+	IP_DetailsScroll()
+end
+
+function IP_DetailsScroll()
+	local scrollMax = acctDetails:GetStringHeight() + detailedHeader:GetStringHeight();
+	local height = InstanceProfits_DetailedDisplay:GetHeight() - 110;
+	if scrollMax > (height) then
 		scrollbar[2]:Show();
-		scrollMax = scrollMax - 353;
+		scrollMax = scrollMax - height;
 	else
 		scrollbar[2]:Hide();
 		scrollMax = 1;
@@ -811,7 +1027,7 @@ function IP_ShowDetails(instanceName)
 end
 
 function IP_InitScrollFrames()
-	local scrollableFrames = {"InstanceProfits_TableDisplay", "InstanceProfits_DetailedDisplay"}
+	local scrollableFrames = {"InstanceProfits_TableDisplay", "InstanceProfits_DetailedDisplay", "InstanceProfits_RecentHistory"}
 	for i, frameName in pairs(scrollableFrames) do
 		--scrollframe
 		scrollframe[i] = CreateFrame("ScrollFrame", nil, _G[frameName])
@@ -853,6 +1069,87 @@ function IP_InitScrollFrames()
 	end
 end
 
+function ShowColorPicker(r, g, b, a, changedCallback)
+	ColorPickerFrame.func, ColorPickerFrame.opacityFunc, ColorPickerFrame.cancelFunc = 
+	changedCallback, changedCallback, changedCallback;
+	ColorPickerFrame:SetColorRGB(r,g,b);
+	ColorPickerFrame.hasOpacity, ColorPickerFrame.opacity = (a ~= nil), a;
+	ColorPickerFrame.previousValues = {r,g,b,a};
+	ColorPickerFrame:Hide(); -- Need to run the OnShow handler.
+	ColorPickerFrame:Show();
+end
+
+local function mainColorCallback(restore)
+ local newR, newG, newB, newA;
+ if restore then
+  -- The user bailed, we extract the old color from the table created by ShowColorPicker.
+	newR, newG, newB, newA = unpack(restore);
+ else
+  -- Something changed
+	newA, newR, newG, newB = OpacitySliderFrame:GetValue(), ColorPickerFrame:GetColorRGB();
+ end
+ 
+ -- Update our internal storage.
+ textColors["main"]["r"] = newR;
+ textColors["main"]["g"] = newG;
+ textColors["main"]["b"] = newB;
+ textColors["main"]["a"] = newA;
+ 
+ content.text:SetTextColor(textColors['main']['r'], textColors['main']['g'], textColors['main']['b'], textColors['main']['a'])
+end
+
+local function detailsColorCallback(restore)
+ local newR, newG, newB, newA;
+ if restore then
+  -- The user bailed, we extract the old color from the table created by ShowColorPicker.
+	newR, newG, newB, newA = unpack(restore);
+ else
+  -- Something changed
+	newA, newR, newG, newB = OpacitySliderFrame:GetValue(), ColorPickerFrame:GetColorRGB();
+ end
+ 
+ -- Update our internal storage.
+ textColors["details"]["r"] = newR;
+ textColors["details"]["g"] = newG;
+ textColors["details"]["b"] = newB;
+ textColors["details"]["a"] = newA;
+ -- And update any UI elements that use this color...
+	detailedHeader:SetTextColor(textColors['details']['r'], textColors['details']['g'], textColors['details']['b'], textColors['details']['a'])
+	charDetails:SetTextColor(textColors['details']['r'], textColors['details']['g'], textColors['details']['b'], textColors['details']['a'])
+	acctDetails:SetTextColor(textColors['details']['r'], textColors['details']['g'], textColors['details']['b'], textColors['details']['a'])
+end
+
+local function recentColorCallback(restore)
+ local newR, newG, newB, newA;
+ if restore then
+  -- The user bailed, we extract the old color from the table created by ShowColorPicker.
+	newR, newG, newB, newA = unpack(restore);
+ else
+  -- Something changed
+	newA, newR, newG, newB = OpacitySliderFrame:GetValue(), ColorPickerFrame:GetColorRGB();
+ end
+ 
+ -- Update our internal storage.
+ textColors["recent"]["r"] = newR;
+ textColors["recent"]["g"] = newG;
+ textColors["recent"]["b"] = newB;
+ textColors["recent"]["a"] = newA;
+ -- And update any UI elements that use this color...
+historyDetails:SetTextColor(textColors['recent']['r'], textColors['recent']['g'], textColors['recent']['b'], textColors['recent']['a'])
+end
+
+function IP_MainTextColor()
+	ShowColorPicker(textColors['main']['r'], textColors['main']['g'], textColors['main']['b'], textColors['main']['a'], mainColorCallback);
+end
+
+function IP_DetailsTextColor()
+	ShowColorPicker(textColors['details']['r'], textColors['details']['g'], textColors['details']['b'], textColors['details']['a'], detailsColorCallback);
+end
+
+function IP_RecentTextColor()
+	ShowColorPicker(textColors['recent']['r'], textColors['recent']['g'], textColors['recent']['b'], textColors['recent']['a'], recentColorCallback);
+end
+
 function eventHandler(self, event, ...)
 	local arg1, arg2 = ...
 	if event == "ADDON_LOADED" and arg1 == "InstanceProfits" then
@@ -880,10 +1177,16 @@ function eventHandler(self, event, ...)
 		  InstanceProfits_LiveDisplay_ButtonDetails:SetWidth(16)
 		  InstanceProfits_LiveDisplay_ButtonDetails:SetHeight(16)
 		  InstanceProfits_LiveDisplay_ButtonDetails.Text:SetText("H")
+		  InstanceProfits_LiveDisplay_ButtonRecent:ClearAllPoints();
+		  InstanceProfits_LiveDisplay_ButtonRecent:SetPoint("TOPRIGHT", InstanceProfits_LiveDisplay, "TOPRIGHT", -5, -45);
+		  InstanceProfits_LiveDisplay_ButtonRecent:SetWidth(16)
+		  InstanceProfits_LiveDisplay_ButtonRecent:SetHeight(16)
+		  InstanceProfits_LiveDisplay_ButtonRecent.Text:SetText("R")
 		  InstanceProfits_LiveDisplay:StripTextures(true);
 		  InstanceProfits_LiveDisplay:CreateBackdrop("Transparent");
 		  S:HandleButton(InstanceProfits_LiveDisplay_ButtonClose);
 		  S:HandleButton(InstanceProfits_LiveDisplay_ButtonDetails);
+		  S:HandleButton(InstanceProfits_LiveDisplay_ButtonRecent);
 		  
 		  -- Skin the InstanceProfits_TableDisplay Frame, all Buttons and the Scroll Bar
 		  InstanceProfits_TableDisplay:StripTextures(true);
@@ -892,6 +1195,7 @@ function eventHandler(self, event, ...)
 		  InstanceProfits_TableDisplay_TitleBar:SetBackdropColor(128/255, 128/255, 128/255, 0.75);
 		  InstanceProfits_TableDisplay_TitleBar_TitleString:SetTextColor(1, 1, 1);
 		  S:HandleButton(InstanceProfits_TableDisplay_ButtonToggleData);
+		  S:HandleButton(InstanceProfits_TableDisplay_ButtonRecent);
 		  S:HandleButton(InstanceProfits_TableDisplay_ButtonClose);
 		  S:HandleButton(InstanceProfits_TableDisplay_ButtonFilter);
 		  S:HandleButton(InstanceProfits_TableDisplay_ButtonResetChar);
@@ -910,11 +1214,20 @@ function eventHandler(self, event, ...)
 		  S:HandleCheckBox(InstanceProfits_FilterOptionsTwentyFiveFilter);
 		  S:HandleCheckBox(InstanceProfits_FilterOptionsTenHeroicFilter);
 		  S:HandleCheckBox(InstanceProfits_FilterOptionsTwentyFiveHeroicFilter);
+		  S:HandleCheckBox(InstanceProfits_FilterOptionsLFRFilter);
 		  
 		  -- Skin the InstanceProfits_DetailedDisplay Frame and all Buttons
 		  InstanceProfits_DetailedDisplay:StripTextures(true);
 		  InstanceProfits_DetailedDisplay:CreateBackdrop("Transparent");
 		  S:HandleButton(InstanceProfits_DetailedDisplay_ButtonClose);
+		  
+		  -- Skin the InstanceProfits_RecentHistory Frame and all Buttons
+		  InstanceProfits_RecentHistory:StripTextures(true);
+		  InstanceProfits_RecentHistory:CreateBackdrop("Transparent");
+		  InstanceProfits_RecentHistory_TitleBar:SetBackdropColor(128/255, 128/255, 128/255, 0.75);
+		  InstanceProfits_RecentHistory_TitleBar_TitleString:SetTextColor(1, 1, 1);
+		  S:HandleButton(InstanceProfits_RecentHistory_TitleBar_ButtonClose);
+		  S:HandleDropDownBox(InstanceProfits_RecentHistory_LimitDropDown);
 		  
 		end
 		instanceName = "|cFFFF0000Not in instance|r";
@@ -922,11 +1235,38 @@ function eventHandler(self, event, ...)
 		InstanceProfits_TableDisplay:Hide();
 		InstanceProfits_LiveDisplay:Hide();
 		InstanceProfits_FilterOptions:Hide();
-		InstanceProfits_DetailedDisplay:Hide()
+		InstanceProfits_DetailedDisplay:Hide();
+		InstanceProfits_RecentHistory:Hide();
 
 		characterHistory = _G["IP_InstanceRunsCharacterHistory"] or {};
 		globalHistory = _G["IP_InstanceRunsGlobalHistory"] or {};
+		recentHistory = _G["IP_RecentHistory"] or {};
+		recentLimit = _G["IP_RecentLimit"] or 5;
 		filteredDifficulties = _G["IP_DifficultyFilters"] or filteredDifficulties;
+		textColors = _G["IP_TextColors"] or {};
+		minTime = _G["IP_MinTime"] or 30;
+		minTimeUnit = _G["IP_MinTimeUnit"] or "Seconds";
+		if textColors['main'] == nil then
+			textColors['main'] = {};
+			textColors["main"]["r"] = 0;
+			textColors["main"]["g"] = .8;
+			textColors["main"]["b"] = 1;
+			textColors["main"]["a"] = 1;
+		end
+		if textColors['details'] == nil then
+			textColors["details"] = {};
+			textColors["details"]["r"] = 1;
+			textColors["details"]["g"] = 1;
+			textColors["details"]["b"] = 1;
+			textColors["details"]["a"] = 1;
+		end
+		if textColors['recent'] == nil then
+			textColors['recent'] = {};
+			textColors["recent"]["r"] = 1;
+			textColors["recent"]["g"] = 1;
+			textColors["recent"]["b"] = 1;
+			textColors["recent"]["a"] = 1;
+		end
 
 		IP_PrintWelcomeMessage();
 		IP_InitScrollFrames();
@@ -941,7 +1281,34 @@ function eventHandler(self, event, ...)
 			whileDead = true,
 			hideOnEscape = true,
 			preferredIndex = 3
-		}						
+		}
+		
+		StaticPopupDialogs["IP_Confirm_Delete_Recent"] = {
+			text = "Are you sure you want to delete all recent runs? This will NOT delete any of the aggregate data for this character, it will only reset the list of recent instances. This action cannot be undone.",
+			button1 = "Yes",
+			button2 = "No",
+			OnAccept = function() end,
+			timeout = 0,
+			whileDead = true,
+			hideOnEscape = true,
+			preferredIndex = 3
+		}
+		
+		StaticPopupDialogs["IP_Confirm_Delete_Character"] = {
+			text = "Are you sure you want to delete all data for this character? This action cannot be undone.",
+			button1 = "Yes",
+			button2 = "No",
+			OnAccept = function() end,
+			timeout = 0,
+			whileDead = true,
+			hideOnEscape = true,
+			preferredIndex = 3
+		}
+
+		InstanceProfits_RecentHistory_LimitDropDown.selectedName = recentLimit;
+		InstanceProfits_RecentHistory_LimitDropDown.selectedValue = recentLimit;
+		UIDropDownMenu_SetSelectedID(InstanceProfits_RecentHistory_LimitDropDown, recentLimit);		
+		UIDropDownMenu_SetWidth(InstanceProfits_RecentHistory_LimitDropDown, 60);	
 
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_ENTERING_WORLD" then
@@ -973,7 +1340,13 @@ function eventHandler(self, event, ...)
 				if not itemLink then
 					quantity, itemLink = 1, strmatch(arg1, LOOT_ITEM_PUSHED_PATTERN)
 					if not itemLink then
-						return
+						quantity, itemLink = 1, strmatch(arg1, LOOT_ITEM_BONUS)
+						if not itemLink then
+							itemLink, quantity = strmatch(arg1, LOOT_ITEM_MULTIPLE_BONUS)
+							if not itemLink then
+								return
+							end
+						end	
 					end
 				end
 			end
@@ -1011,6 +1384,11 @@ function eventHandler(self, event, ...)
 		_G["IP_InstanceRunsCharacterHistory"] = characterHistory;
 		_G["IP_InstanceRunsGlobalHistory"] = globalHistory;
 		_G["IP_DifficultyFilters"] = filteredDifficulties;
+		_G["IP_RecentHistory"] = recentHistory;
+		_G["IP_RecentLimit"] = recentLimit;
+		_G["IP_TextColors"] = textColors;
+		_G["IP_MinTime"] = minTime;
+		_G["IP_MinTimeUnit"] = minTimeUnit;
 	end
 end
 frame:SetScript("OnEvent", eventHandler);
@@ -1019,10 +1397,8 @@ SLASH_INSTANCEPROFITS1, SLASH_INSTANCEPROFITS2, SLASH_INSTANCEPROFITS3 = '/ip', 
 function SlashCmdList.INSTANCEPROFITS(msg, editbox)
 	if msg == 'live' then
 		IP_ShowLiveTracker();
-	elseif msg == 'filter' then
-		IP_ShowFilters()
 	else
 		InstanceProfits_TableDisplay:Show();
-		IP_DisplaySavedData();
+		IP_DisplaySavedData(1);
 	end
 end

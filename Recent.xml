@@ -1,15 +1,19 @@
 <Ui>
-	<Frame name="InstanceProfits_TableDisplay" parent="UIParent" resizable="true" movable="true" clampedToScreen="true">
+	<Frame name="InstanceProfits_RecentHistory" parent="UIParent" enableMouse="true" resizable="true" movable="true" userPlaced="true" clampedToScreen="true">
 		<Anchors>
-			<Anchor point="CENTER" />
+			<Anchor point="TOP">
+				<Offset>
+					<AbsDimension x="20" y="-20" />
+				</Offset>
+			</Anchor>
 		</Anchors>
 		<Size>
-			<AbsDimension x="500" y="700" />
+			<AbsDimension x="400" y="600" />
 		</Size>
 		<ResizeBounds>
 			<minResize x="200" y="90"/>
 		</ResizeBounds>
-		<Backdrop 	bgFile="Interface\Tooltips\UI-Tooltip-Background"
+		<Backdrop 	bgFile="Interface\DialogFrame\UI-DialogBox-Background-Dark"
 					edgeFile="Interface\Tooltips\UI-Tooltip-Border"
 					tile="true">
 			<EdgeSize>
@@ -24,17 +28,13 @@
 			<Color r="0" g="0" b="0" a="1" />
 		</Backdrop>
 		<Frames>
-			<Frame name="$parent_TitleBar" enableMouse="true" resizable="true">
+			<Frame name="$parent_TitleBar" enableMouse="true">
 				<Anchors>
 					<Anchor point="TOPLEFT" />
 				</Anchors>
 				<Size>
-					<AbsDimension x="500" y="30" />
+					<AbsDimension x="300" y="30" />
 				</Size>
-				<ResizeBounds>
-					<minResize x="200" y="30"/>
-					<maxResize x="5000" y="30"/>
-				</ResizeBounds>
 				<Backdrop 	bgFile="Interface\Tooltips\UI-Tooltip-Background"
 							tile="true">
 					<TileSize>
@@ -64,7 +64,7 @@
 					<Layer level="ARTWORK">
 						<FontString name="$parent_TitleString"
 									inherits="SystemFont_Med3"
-									text="InstanceProfit Tracking"
+									text="InstanceProfit Recent History"
 									justifyV="TOP"
 									justifyH="RIGHT">
 							<Size>
@@ -93,82 +93,41 @@
 					<OnMouseUp>
 						self:GetParent():StopMovingOrSizing();
 						self:SetWidth(self:GetParent():GetWidth());
-						IP_MainScroll();
+						IP_RecentHistoryScroll();
 					</OnMouseUp>
 					<OnDrag>
 						self:SetWidth(self:GetParent():GetWidth());
 					</OnDrag>
 				</Scripts>
 			</Frame>
-
-			<Button name="$parent_ButtonToggleData" inherits="OptionsButtonTemplate" text="Show Account Data">
-				<Anchors>
-					<Anchor point="TOP">
-						<Offset x="12" y="-36"/>
-					</Anchor>
-			    </Anchors>
-				<Size>
-					<AbsDimension x="150" y="21" />
-				</Size>
-			    <Scripts>
-					<OnClick> IP_ToggleDisplayGlobal(); </OnClick>
-			    </Scripts>
-			</Button>
-			
-			<Button name="$parent_ButtonRecent" inherits="OptionsButtonTemplate" text="Show Recent Runs">
+			<Button name="$parent_LimitDropDown" inherits="UIDropDownMenuTemplate">
+				<Scripts>
+					<OnLoad>
+						UIDropDownMenu_Initialize(self, IP_BuildLimitDropdown);
+					</OnLoad>
+				</Scripts>
 				<Anchors>
 					<Anchor point="TOPLEFT">
-						<Offset x="12" y="-36"/>
+						<Offset>
+							<AbsDimension x="100" y="-40"></AbsDimension>
+						</Offset>
 					</Anchor>
 				</Anchors>
-				<Size>
-					<AbsDimension x="150" y="21" />
-				</Size>
-				<Scripts>
-					<OnClick>
-						IP_ShowRecent();
-					</OnClick>
-				</Scripts>
 			</Button>
-			
 			<Button name="$parent_ButtonChangeTextColor" inherits="OptionsButtonTemplate" text="Text Color">
 				<Anchors>
 					<Anchor point="TOPRIGHT">
-						<Offset x="-12" y="-36"/>
+						<Offset x="-12" y="-44"/>
 					</Anchor>
 			    </Anchors>
 				<Size>
-					<AbsDimension x="100" y="21" />
+					<AbsDimension x="90" y="21" />
 				</Size>
 			    <Scripts>
-					<OnClick> IP_MainTextColor(); </OnClick>
+					<OnClick> IP_RecentTextColor(); </OnClick>
 			    </Scripts>
 			</Button>
-
-			<Button name="$parent_ButtonClose" inherits="OptionsButtonTemplate" text="Close">
-				<Anchors>
-					<Anchor point="BOTTOMRIGHT">
-						<Offset x="-12" y="16"/>
-					</Anchor>
-			    </Anchors>
-			    <Scripts>
-					<OnClick> self:GetParent():Hide(); </OnClick>
-			    </Scripts>
-			</Button>
-			<Button name="$parent_ButtonFilter" inherits="OptionsButtonTemplate" text="Filter Results">
-				<Anchors>
-					<Anchor point="BOTTOMLEFT">
-						<Offset x="12" y="16"/>
-					</Anchor>
-			    </Anchors>
-				<Size>
-					<AbsDimension x="110" y="21" />
-				</Size>
-			    <Scripts>
-					<OnClick> IP_ShowFilters(); </OnClick>
-			    </Scripts>
-			</Button>
-			<Button name="$parent_ButtonResetChar" inherits="OptionsButtonTemplate" text="Reset Character Data">
+			<Button name="$parent_ButtonResetRecent" inherits="OptionsButtonTemplate" text="Reset Recent Data">
 				<Anchors>
 					<Anchor point="BOTTOM">
 						<Offset x="15" y="16"/>
@@ -178,10 +137,30 @@
 					<AbsDimension x="150" y="21" />
 				</Size>
 			    <Scripts>
-					<OnClick> IP_ClearCharacterData(); </OnClick>
+					<OnClick> IP_ClearRecentData(); </OnClick>
 			    </Scripts>
 			</Button>
 		</Frames>
-
+		<Layers>
+			<Layer level="ARTWORK">
+				<FontString name="$parent_SortString"
+							inherits="SystemFont_Med3"
+							text="History Limit: "
+							justifyV="TOP"
+							justifyH="RIGHT">
+					<Size>
+						<AbsDimension x="0" y="15" />
+					</Size>
+					<Anchors>
+						<Anchor point="TOPLEFT">
+							<Offset>
+								<AbsDimension x="20" y="-45" />
+							</Offset>
+						</Anchor>
+					</Anchors>
+					<Color r="1" g=".8" b="0.2" a="1" />
+				</FontString>
+			</Layer>
+		</Layers>
 	</Frame>
 </Ui>

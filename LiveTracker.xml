@@ -44,13 +44,25 @@
 			<Button name="$parent_ButtonDetails" inherits="OptionsButtonTemplate" text="History">
 				<Anchors>
 					<Anchor point="TOPRIGHT">
-						<Offset x="-10" y="-20"/>
+						<Offset x="-10" y="-25"/>
 					</Anchor>
 				</Anchors>
 				<Scripts>
 					<OnClick>
 						InstanceProfits_TableDisplay:Show();
-						IP_DisplaySavedData();
+						IP_DisplaySavedData(1);
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="$parent_ButtonRecent" inherits="OptionsButtonTemplate" text="Recent">
+				<Anchors>
+					<Anchor point="TOPRIGHT">
+						<Offset x="-10" y="-50"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						IP_ShowRecent();
 					</OnClick>
 				</Scripts>
 			</Button>

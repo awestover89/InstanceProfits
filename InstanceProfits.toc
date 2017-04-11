@@ -1,6 +1,6 @@
-## Interface: 70000
+## Interface: 70200
 ## Title: Instance Profit Tracker
-## SavedVariables: IP_InstanceRunsGlobalHistory
+## SavedVariables: IP_InstanceRunsGlobalHistory, IP_RecentLimit, IP_RecentHistory, IP_TextColors, IP_MinTime, IP_MinTimeUnit
 ## SavedVariablesPerCharacter: IP_InstanceRunsCharacterHistory, IP_DifficultyFilters
 ## Notes: An addon to track the time spent and gold earned from running raids and dungeons
 InstanceProfits.lua
@@ -8,3 +8,4 @@ InstanceProfits.xml
 LiveTracker.xml
 Filters.xml
 Details.xml
+Recent.xml
