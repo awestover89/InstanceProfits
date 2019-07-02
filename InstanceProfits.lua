@@ -43,9 +43,10 @@ liveLoot = nil;
 liveVendor = nil;
 detailedHeader, charDetails, acctDetails = nil, nil, nil;
 prevPage, nextPage = nil, nil;
+lastProfit, lastTime, shareType = nil, nil, nil;
 local lootableItems = {};
 local elapsedTime, lootedMoney, vendorMoney = 0, 0, 0;
-local version = "0.6.4";
+local version = "0.7.1";
 local repairTooltip = nil;
 
 local frame = CreateFrame("FRAME", "InstanceProfitsFrame");
@@ -605,6 +606,13 @@ function IP_ShowFilters()
 	_G["InstanceProfits_FilterOptions_MinTimeValue"]:SetNumber(minTime)
 end
 
+function IP_ShowShareDialog(share)
+	InstanceProfits_ShareDialog:Show();
+	InstanceProfits_ShareDialog:SetFrameStrata("HIGH");
+	InstanceProfits_ShareDialog:Raise();
+	shareType = share
+end
+
 function IP_ShowRecent()
 	InstanceProfits_RecentHistory:Show();
 	InstanceProfits_RecentHistory:SetFrameStrata("HIGH");
@@ -659,7 +667,7 @@ function IP_Checkbutton_OnClick(checkbutton)
 	end
 end
 
-function IP_MinTimeRadio_OnLoad(radiobutton, name)
+function IP_Radio_OnLoad(radiobutton, name)
 	_G[radiobutton:GetName() .. "Text"]:SetText(name)
 end
 
@@ -673,6 +681,31 @@ function IP_MinTimeRadio_OnClick(radiobutton)
 		end
 	else
 		radiobutton:SetChecked(true)
+	end
+end
+
+function IP_ShareData()
+	local msgtype, tgt = nil
+	local msg1 = "Instance Profit Tracker - " .. instanceName .. " " .. instanceDifficultyName
+	local msg2 = "Profit of " .. GetCoinText(vendorMoney + lootedMoney) .. " earned in " .. string.sub(liveTime:GetText(), 7)
+	if _G["InstanceProfits_ShareDialogSay"]:GetChecked() == true then
+		msgtype = "SAY"
+	elseif _G["InstanceProfits_ShareDialogGuild"]:GetChecked() == true then
+		msgtype = "GUILD"
+	elseif _G["InstanceProfits_ShareDialogWhisper"]:GetChecked() == true then
+		msgtype = "WHISPER"
+		tgt = _G["InstanceProfits_ShareDialogWhisperName"]:GetText()
+	elseif _G["InstanceProfits_ShareDialogGeneral"]:GetChecked() == true then
+		msgtype = "CHANNEL"
+		tgt = 1
+	elseif _G["InstanceProfits_ShareDialogTrade"]:GetChecked() == true then
+		msgtype = "CHANNEL"
+		tgt = 2
+	end
+	
+	if instanceName then
+		SendChatMessage(msg1, msgtype, nil, tgt);
+		SendChatMessage(msg2, msgtype, nil, tgt);
 	end
 end
 
@@ -1237,6 +1270,7 @@ function eventHandler(self, event, ...)
 		InstanceProfits_FilterOptions:Hide();
 		InstanceProfits_DetailedDisplay:Hide();
 		InstanceProfits_RecentHistory:Hide();
+		InstanceProfits_ShareDialog:Hide();
 
 		characterHistory = _G["IP_InstanceRunsCharacterHistory"] or {};
 		globalHistory = _G["IP_InstanceRunsGlobalHistory"] or {};
@@ -1362,11 +1396,14 @@ function eventHandler(self, event, ...)
 		end
 
 		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney))
-	elseif event == "GET_ITEM_INFO_RECEIVED" and isInPvEInstance then
+	elseif event == "GET_ITEM_INFO_RECEIVED" and isInPvEInstance and arg1 > 0 then
 		local name, _, _, _, _, _, _, _, _, _, vendorPrice = GetItemInfo(arg1);
-		vendorMoney = vendorMoney + (vendorPrice * (lootableItems[name] or 0));
-		lootableItems[name] = 0;
-
+		if name and vendorPrice then
+			vendorMoney = vendorMoney + (vendorPrice * (lootableItems[name] or 0));
+			lootableItems[name] = 0;
+		else
+			print("Error loading item ID " .. arg1);
+		end
 		liveVendor:SetText("Vendor: " .. GetMoneyString(vendorMoney))
 	elseif event == "CHAT_MSG_MONEY" and isInPvEInstance then
 		local goldPattern = GOLD_AMOUNT:gsub('%%d', '(%%d*)')

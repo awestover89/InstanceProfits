@@ -1,0 +1,236 @@
+<Ui>
+	<Frame name="InstanceProfits_ShareDialog" parent="UIParent" enableMouse="true" resizable="true" movable="true" userPlaced="true" clampedToScreen="true">
+		<Anchors>
+			<Anchor point="TOP">
+				<Offset>
+					<AbsDimension x="20" y="-20" />
+				</Offset>
+			</Anchor>
+		</Anchors>
+		<Size>
+			<AbsDimension x="200" y="220" />
+		</Size>
+		<ResizeBounds>
+			<minResize x="200" y="220"/>
+		</ResizeBounds>
+		<Backdrop 	bgFile="Interface\DialogFrame\UI-DialogBox-Background-Dark"
+					edgeFile="Interface\Tooltips\UI-Tooltip-Border"
+					tile="true">
+			<EdgeSize>
+				<AbsValue val="16" />
+			</EdgeSize>
+			<TileSize>
+				<AbsValue val="16" />
+			</TileSize>
+			<BackgroundInsets>
+				<AbsInset left="4" right="3" top="4" bottom="3" />
+			</BackgroundInsets>
+			<Color r="0" g="0" b="0" a="1" />
+		</Backdrop>
+		<Frames>
+			<Frame name="$parent_TitleBar" enableMouse="true">
+				<Anchors>
+					<Anchor point="TOPLEFT" />
+				</Anchors>
+				<Size>
+					<AbsDimension x="200" y="30" />
+				</Size>
+				<Backdrop 	bgFile="Interface\Tooltips\UI-Tooltip-Background"
+							tile="true">
+					<TileSize>
+						<AbsValue val="16" />
+					</TileSize>
+					<BackgroundInsets>
+						<AbsInset left="4" right="3" top="4" bottom="3" />
+					</BackgroundInsets>
+					<Color r="0.2" g="0.2" b="1" a="1" />
+				</Backdrop>
+				<Frames>
+					<Button name="$parent_ButtonClose" inherits="OptionsButtonTemplate" text="X">
+						<Anchors>
+							<Anchor point="BOTTOMRIGHT">
+								<Offset x="-10" y="7"/>
+							</Anchor>
+						</Anchors>
+						<Size>
+							<AbsDimension x="16" y="16" />
+						</Size>
+						<Scripts>
+							<OnClick> self:GetParent():GetParent():Hide(); </OnClick>
+						</Scripts>
+					</Button>
+				</Frames>
+				<Layers>
+					<Layer level="ARTWORK">
+						<FontString name="$parent_TitleString"
+									inherits="SystemFont_Med3"
+									text="Announce Profits"
+									justifyV="TOP"
+									justifyH="RIGHT">
+							<Size>
+								<AbsDimension x="0" y="15" />
+							</Size>
+							<Anchors>
+								<Anchor point="TOPLEFT">
+									<Offset>
+										<AbsDimension x="20" y="-10" />
+									</Offset>
+								</Anchor>
+							</Anchors>
+							<Color r="1" g="0.2" b="0.2" a="1" />
+						</FontString>
+					</Layer>
+				</Layers>
+				<Scripts>
+					<OnMouseDown>
+						if button == "LeftButton" then
+							self:GetParent():StartMoving();
+						else
+							self:GetParent():StartSizing();
+							self:SetWidth(self:GetParent():GetWidth());
+						end
+					</OnMouseDown>
+					<OnMouseUp>
+						self:GetParent():StopMovingOrSizing();
+						self:SetWidth(self:GetParent():GetWidth());
+					</OnMouseUp>
+					<OnDrag>
+						self:SetWidth(self:GetParent():GetWidth());
+					</OnDrag>
+				</Scripts>
+			</Frame>
+			<Button name="$parent_ButtonSave" inherits="OptionsButtonTemplate" text="Share">
+				<Anchors>
+					<Anchor point="TOPRIGHT">
+						<Offset x="-10" y="-35"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						IP_ShareData()
+					</OnClick>
+				</Scripts>
+			</Button>
+			<CheckButton name="$parentSay" inherits="UIRadioButtonTemplate" checked="true" text="Say">
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="20" y="-60"></AbsDimension>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						IP_Radio_OnLoad(self, "Say")
+					</OnLoad>
+					<OnClick>
+						InstanceProfits_ShareDialogSay:SetChecked(true)
+						InstanceProfits_ShareDialogGuild:SetChecked(false)
+						InstanceProfits_ShareDialogWhisper:SetChecked(false)
+						InstanceProfits_ShareDialogGeneral:SetChecked(false)
+						InstanceProfits_ShareDialogTrade:SetChecked(false)
+						InstanceProfits_ShareDialogWhisperName:ClearFocus()
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="$parentGuild" inherits="UIRadioButtonTemplate" checked="false" text="Guild">
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="20" y="-85"></AbsDimension>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						IP_Radio_OnLoad(self, "Guild")
+					</OnLoad>
+					<OnClick>
+						InstanceProfits_ShareDialogSay:SetChecked(false)
+						InstanceProfits_ShareDialogGuild:SetChecked(true)
+						InstanceProfits_ShareDialogWhisper:SetChecked(false)
+						InstanceProfits_ShareDialogGeneral:SetChecked(false)
+						InstanceProfits_ShareDialogTrade:SetChecked(false)
+						InstanceProfits_ShareDialogWhisperName:ClearFocus()
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="$parentWhisper" inherits="UIRadioButtonTemplate" checked="false" text="Whisper">
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="20" y="-110"></AbsDimension>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						IP_Radio_OnLoad(self, "Whisper")
+					</OnLoad>
+					<OnClick>
+						InstanceProfits_ShareDialogSay:SetChecked(false)
+						InstanceProfits_ShareDialogGuild:SetChecked(false)
+						InstanceProfits_ShareDialogWhisper:SetChecked(true)
+						InstanceProfits_ShareDialogGeneral:SetChecked(false)
+						InstanceProfits_ShareDialogTrade:SetChecked(false)
+						InstanceProfits_ShareDialogWhisperName:SetFocus(true)
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<EditBox name="InstanceProfits_ShareDialogWhisperName" inherits="InputBoxTemplate" autoFocus="false" numeric="false">
+				<Size x="120" y="100"/>
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="40" y="-95" />
+						</Offset>
+					</Anchor>
+				</Anchors>
+			</EditBox>
+			<CheckButton name="$parentGeneral" inherits="UIRadioButtonTemplate" checked="false" text="1. General">
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="20" y="-160"></AbsDimension>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						IP_Radio_OnLoad(self, "1. General")
+					</OnLoad>
+					<OnClick>
+						InstanceProfits_ShareDialogSay:SetChecked(false)
+						InstanceProfits_ShareDialogGuild:SetChecked(false)
+						InstanceProfits_ShareDialogWhisper:SetChecked(false)
+						InstanceProfits_ShareDialogGeneral:SetChecked(true)
+						InstanceProfits_ShareDialogTrade:SetChecked(false)
+						InstanceProfits_ShareDialogWhisperName:ClearFocus()
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+			<CheckButton name="$parentTrade" inherits="UIRadioButtonTemplate" checked="false" text="2. Trade">
+				<Anchors>
+					<Anchor point="TOPLEFT">
+						<Offset>
+							<AbsDimension x="20" y="-185"></AbsDimension>
+						</Offset>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						IP_Radio_OnLoad(self, "2. Trade")
+					</OnLoad>
+					<OnClick>
+						InstanceProfits_ShareDialogSay:SetChecked(false)
+						InstanceProfits_ShareDialogGuild:SetChecked(false)
+						InstanceProfits_ShareDialogWhisper:SetChecked(false)
+						InstanceProfits_ShareDialogGeneral:SetChecked(false)
+						InstanceProfits_ShareDialogTrade:SetChecked(true)
+						InstanceProfits_ShareDialogWhisperName:ClearFocus()
+					</OnClick>
+				</Scripts>
+			</CheckButton>
+		</Frames>
+	</Frame>
+</Ui>

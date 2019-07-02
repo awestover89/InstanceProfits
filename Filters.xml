@@ -257,7 +257,7 @@
 				</Anchors>
 				<Scripts>
 					<OnLoad>
-						IP_MinTimeRadio_OnLoad(self, "Seconds")
+						IP_Radio_OnLoad(self, "Seconds")
 					</OnLoad>
 					<OnClick>
 						IP_MinTimeRadio_OnClick(self)
@@ -274,7 +274,7 @@
 				</Anchors>
 				<Scripts>
 					<OnLoad>
-						IP_MinTimeRadio_OnLoad(self, "Minutes")
+						IP_Radio_OnLoad(self, "Minutes")
 					</OnLoad>
 					<OnClick>
 						IP_MinTimeRadio_OnClick(self)

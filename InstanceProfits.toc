@@ -1,4 +1,4 @@
-## Interface: 70200
+## Interface: 80200
 ## Title: Instance Profit Tracker
 ## SavedVariables: IP_InstanceRunsGlobalHistory, IP_RecentLimit, IP_RecentHistory, IP_TextColors, IP_MinTime, IP_MinTimeUnit
 ## SavedVariablesPerCharacter: IP_InstanceRunsCharacterHistory, IP_DifficultyFilters
@@ -9,3 +9,4 @@ LiveTracker.xml
 Filters.xml
 Details.xml
 Recent.xml
+Share.xml

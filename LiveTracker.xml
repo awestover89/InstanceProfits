@@ -8,10 +8,10 @@
 			</Anchor>
 		</Anchors>
 		<Size>
-			<AbsDimension x="200" y="90" />
+			<AbsDimension x="250" y="120" />
 		</Size>
 		<ResizeBounds>
-			<minResize x="200" y="90"/>
+			<minResize x="250" y="120"/>
 		</ResizeBounds>
 		<Backdrop 	bgFile="Interface\Tooltips\UI-Tooltip-Background"
 					edgeFile="Interface\Tooltips\UI-Tooltip-Border"
@@ -63,6 +63,18 @@
 				<Scripts>
 					<OnClick>
 						IP_ShowRecent();
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="$parent_ButtonShare" inherits="OptionsButtonTemplate" text="Share">
+				<Anchors>
+					<Anchor point="TOPRIGHT">
+						<Offset x="-10" y="-75"/>
+					</Anchor>
+				</Anchors>
+				<Scripts>
+					<OnClick>
+						IP_ShowShareDialog("live");
 					</OnClick>
 				</Scripts>
 			</Button>
